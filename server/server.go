@@ -33,6 +33,7 @@ import (
 	"github.com/apache/kvrocks-controller/logger"
 	"github.com/apache/kvrocks-controller/storage"
 	"github.com/apache/kvrocks-controller/storage/persistence"
+	"github.com/apache/kvrocks-controller/storage/persistence/embedded"
 	"github.com/apache/kvrocks-controller/storage/persistence/etcd"
 	"github.com/apache/kvrocks-controller/storage/persistence/zookeeper"
 	"github.com/gin-gonic/gin"
@@ -57,6 +58,9 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	case strings.EqualFold(cfg.StorageType, "zookeeper"):
 		logger.Get().Info("Use Zookeeper as storage")
 		persist, err = zookeeper.New(cfg.Addr, cfg.Zookeeper)
+	case strings.EqualFold(cfg.StorageType, "embedded"):
+		logger.Get().Info("Use Embedded as storage")
+		persist, err = embedded.New(cfg.Addr)
 	default:
 		logger.Get().Info("Use Etcd as default storage")
 		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
