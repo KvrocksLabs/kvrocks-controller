@@ -39,8 +39,8 @@ type raftNode struct {
 	id          int      // client ID for raft session
 	peers       []string // raft peer URLs
 	join        bool     // node is joining an existing cluster
-	waldir      string   // path to WAL directory
-	snapdir     string   // path to snapshot directory
+	walDir      string   // path to WAL directory
+	snapDir     string   // path to snapshot directory
 	getSnapshot func() ([]byte, error)
 
 	confState     raftpb.ConfState
@@ -55,11 +55,11 @@ type raftNode struct {
 	snapshotter      *snap.Snapshotter
 	snapshotterReady chan *snap.Snapshotter // signals when snapshotter is ready
 
-	snapCount uint64
-	transport *rafthttp.Transport
-	stopc     chan struct{} // signals proposal channel closed
-	httpstopc chan struct{} // signals http server to shutdown
-	httpdonec chan struct{} // signals http server shutdown complete
+	snapCount  uint64
+	transport  *rafthttp.Transport
+	stopCh     chan struct{} // signals proposal channel closed
+	httpStopCh chan struct{} // signals http server to shutdown
+	httpDoneCh chan struct{} // signals http server shutdown complete
 
 	logger *zap.Logger
 }
@@ -85,13 +85,13 @@ func newRaftNode(id int, peers []string, join bool, getSnapshot func() ([]byte, 
 		id:          id,
 		peers:       peers,
 		join:        join,
-		waldir:      fmt.Sprintf("raftexample-%d", id),
-		snapdir:     fmt.Sprintf("raftexample-%d-snap", id),
+		walDir:      fmt.Sprintf("raftexample-%d", id),
+		snapDir:     fmt.Sprintf("raftexample-%d-snap", id),
 		getSnapshot: getSnapshot,
 		snapCount:   defaultSnapshotCount,
-		stopc:       make(chan struct{}),
-		httpstopc:   make(chan struct{}),
-		httpdonec:   make(chan struct{}),
+		stopCh:      make(chan struct{}),
+		httpStopCh:  make(chan struct{}),
+		httpDoneCh:  make(chan struct{}),
 
 		logger: zap.NewExample(),
 
@@ -176,7 +176,7 @@ func (rc *raftNode) publishEntries(ents []raftpb.Entry) (<-chan struct{}, bool) 
 		applyDoneC = make(chan struct{}, 1)
 		select {
 		case rc.commitC <- &commit{data, applyDoneC}:
-		case <-rc.stopc:
+		case <-rc.stopCh:
 			return nil, false
 		}
 	}
@@ -188,8 +188,8 @@ func (rc *raftNode) publishEntries(ents []raftpb.Entry) (<-chan struct{}, bool) 
 }
 
 func (rc *raftNode) loadSnapshot() *raftpb.Snapshot {
-	if wal.Exist(rc.waldir) {
-		walSnaps, err := wal.ValidSnapshotEntries(rc.logger, rc.waldir)
+	if wal.Exist(rc.walDir) {
+		walSnaps, err := wal.ValidSnapshotEntries(rc.logger, rc.walDir)
 		if err != nil {
 			log.Fatalf("raftexample: error listing snapshots (%v)", err)
 		}
@@ -204,12 +204,12 @@ func (rc *raftNode) loadSnapshot() *raftpb.Snapshot {
 
 // openWAL returns a WAL ready for reading.
 func (rc *raftNode) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
-	if !wal.Exist(rc.waldir) {
-		if err := os.Mkdir(rc.waldir, 0750); err != nil {
+	if !wal.Exist(rc.walDir) {
+		if err := os.Mkdir(rc.walDir, 0750); err != nil {
 			log.Fatalf("raftexample: cannot create dir for wal (%v)", err)
 		}
 
-		w, err := wal.Create(zap.NewExample(), rc.waldir, nil)
+		w, err := wal.Create(zap.NewExample(), rc.walDir, nil)
 		if err != nil {
 			log.Fatalf("raftexample: create wal error (%v)", err)
 		}
@@ -221,7 +221,7 @@ func (rc *raftNode) openWAL(snapshot *raftpb.Snapshot) *wal.WAL {
 		walsnap.Index, walsnap.Term = snapshot.Metadata.Index, snapshot.Metadata.Term
 	}
 	log.Printf("loading WAL at term %d and index %d", walsnap.Term, walsnap.Index)
-	w, err := wal.Open(zap.NewExample(), rc.waldir, walsnap)
+	w, err := wal.Open(zap.NewExample(), rc.walDir, walsnap)
 	if err != nil {
 		log.Fatalf("raftexample: error loading wal (%v)", err)
 	}
@@ -259,14 +259,14 @@ func (rc *raftNode) writeError(err error) {
 }
 
 func (rc *raftNode) startRaft() {
-	if !fileutil.Exist(rc.snapdir) {
-		if err := os.Mkdir(rc.snapdir, 0750); err != nil {
+	if !fileutil.Exist(rc.snapDir) {
+		if err := os.Mkdir(rc.snapDir, 0750); err != nil {
 			log.Fatalf("raftexample: cannot create dir for snapshot (%v)", err)
 		}
 	}
-	rc.snapshotter = snap.New(zap.NewExample(), rc.snapdir)
+	rc.snapshotter = snap.New(zap.NewExample(), rc.snapDir)
 
-	oldwal := wal.Exist(rc.waldir)
+	oldwal := wal.Exist(rc.walDir)
 	rc.wal = rc.replayWAL()
 
 	// signal replay has finished
@@ -323,8 +323,8 @@ func (rc *raftNode) stop() {
 
 func (rc *raftNode) stopHTTP() {
 	rc.transport.Stop()
-	close(rc.httpstopc)
-	<-rc.httpdonec
+	close(rc.httpStopCh)
+	<-rc.httpDoneCh
 }
 
 func (rc *raftNode) publishSnapshot(snapshotToSave raftpb.Snapshot) {
@@ -356,7 +356,7 @@ func (rc *raftNode) maybeTriggerSnapshot(applyDoneC <-chan struct{}) {
 	if applyDoneC != nil {
 		select {
 		case <-applyDoneC:
-		case <-rc.stopc:
+		case <-rc.stopCh:
 			return
 		}
 	}
@@ -428,7 +428,7 @@ func (rc *raftNode) serveChannels() {
 			}
 		}
 		// client closed channel; shutdown raft if not already
-		close(rc.stopc)
+		close(rc.stopCh)
 	}()
 
 	// event loop on raft state machine updates
@@ -463,7 +463,7 @@ func (rc *raftNode) serveChannels() {
 			rc.writeError(err)
 			return
 
-		case <-rc.stopc:
+		case <-rc.stopCh:
 			rc.stop()
 			return
 		}
@@ -495,12 +495,12 @@ func (rc *raftNode) serveRaft() {
 
 	err = (&http.Server{Handler: rc.transport.Handler()}).Serve(ln)
 	select {
-	case <-rc.httpstopc:
+	case <-rc.httpStopCh:
 		_ = ln.Close()
 	default:
 		log.Fatalf("raftexample: Failed to serve rafthttp (%v)", err)
 	}
-	close(rc.httpdonec)
+	close(rc.httpDoneCh)
 }
 
 func (rc *raftNode) Process(ctx context.Context, m raftpb.Message) error {

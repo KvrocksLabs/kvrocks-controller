@@ -60,7 +60,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		persist, err = zookeeper.New(cfg.Addr, cfg.Zookeeper)
 	case strings.EqualFold(cfg.StorageType, "embedded"):
 		logger.Get().Info("Use Embedded as storage")
-		persist, err = embedded.New(cfg.Addr)
+		persist, err = embedded.New(cfg.Addr, cfg.Embedded)
 	default:
 		logger.Get().Info("Use Etcd as default storage")
 		persist, err = etcd.New(cfg.Addr, cfg.Etcd)

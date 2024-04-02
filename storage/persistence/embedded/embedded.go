@@ -3,11 +3,18 @@ package embedded
 import (
 	"context"
 	"errors"
-	"github.com/apache/kvrocks-controller/metadata"
-	"github.com/apache/kvrocks-controller/storage/persistence"
 	"strings"
 	"sync"
+
+	"github.com/apache/kvrocks-controller/metadata"
+	"github.com/apache/kvrocks-controller/storage/persistence"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 )
+
+type Config struct {
+	Addrs []string `yaml:"addrs"`
+	Id    int      `yaml:"id"`
+}
 
 type Embedded struct {
 	kv *kv
@@ -18,18 +25,28 @@ type Embedded struct {
 
 	quitCh         chan struct{}
 	leaderChangeCh chan bool
+	proposeCh      chan string
+	confChangeCh   chan raftpb.ConfChange
 }
 
-func New(id string) (*Embedded, error) {
+func New(id string, cfg *Config) (*Embedded, error) {
+	proposeCh := make(chan string)
+	confChangeCh := make(chan raftpb.ConfChange)
+
+	var kvs *kv
+	getSnapshot := func() ([]byte, error) { return kvs.getSnapshot() }
+	commitC, errorC, snapshotterReady := newRaftNode(cfg.Id, cfg.Addrs, false, getSnapshot, proposeCh, confChangeCh)
+
+	kvs = newKv(<-snapshotterReady, proposeCh, commitC, errorC)
+
 	embedded := Embedded{
-		kv:             newKv(),
+		kv:             kvs,
 		myID:           id,
 		quitCh:         make(chan struct{}),
 		leaderChangeCh: make(chan bool, 1),
+		proposeCh:      proposeCh,
+		confChangeCh:   confChangeCh,
 	}
-	//TODO delete follows
-	embedded.leaderID = id
-	embedded.leaderChangeCh <- true
 	return &embedded, nil
 }
 
@@ -76,11 +93,13 @@ func (e *Embedded) Exists(ctx context.Context, key string) (bool, error) {
 }
 
 func (e *Embedded) Set(_ context.Context, key string, value []byte) error {
-	return e.kv.Set(key, value)
+	e.kv.Propose(key, value)
+	return nil
 }
 
 func (e *Embedded) Delete(_ context.Context, key string) error {
-	return e.kv.Delete(key)
+	e.kv.Propose(key, nil)
+	return nil
 }
 
 func (e *Embedded) List(_ context.Context, prefix string) ([]persistence.Entry, error) {
