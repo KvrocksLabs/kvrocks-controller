@@ -3,12 +3,14 @@ package embedded
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/apache/kvrocks-controller/metadata"
 	"github.com/apache/kvrocks-controller/storage/persistence"
 	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 )
 
 type Config struct {
@@ -17,33 +19,42 @@ type Config struct {
 }
 
 type Embedded struct {
-	kv *kv
+	kv   *kv
+	node *raftNode
 
-	leaderMu sync.RWMutex
-	leaderID string
-	myID     string
+	myID string
 
 	quitCh         chan struct{}
-	leaderChangeCh chan bool
+	leaderChangeCh <-chan bool
 	proposeCh      chan string
 	confChangeCh   chan raftpb.ConfChange
 }
 
-func New(id string, cfg *Config) (*Embedded, error) {
+func New(_ string, cfg *Config) (*Embedded, error) {
 	proposeCh := make(chan string)
 	confChangeCh := make(chan raftpb.ConfChange)
+	leaderChangeCh := make(chan bool)
+	commitCh := make(chan *commit)
+	errorCh := make(chan error)
+	snapshotterReady := make(chan *snap.Snapshotter, 1)
 
 	var kvs *kv
 	getSnapshot := func() ([]byte, error) { return kvs.getSnapshot() }
-	commitC, errorC, snapshotterReady := newRaftNode(cfg.Id, cfg.Addrs, false, getSnapshot, proposeCh, confChangeCh)
+	for i, addr := range cfg.Addrs {
+		if !strings.HasPrefix(addr, "http://") {
+			cfg.Addrs[i] = fmt.Sprintf("http://%s", addr)
+		}
+	}
+	node := newRaftNode(cfg.Id, cfg.Addrs, false, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
 
-	kvs = newKv(<-snapshotterReady, proposeCh, commitC, errorC)
+	kvs = newKv(<-snapshotterReady, proposeCh, commitCh, errorCh)
 
 	embedded := Embedded{
 		kv:             kvs,
-		myID:           id,
+		node:           node,
+		myID:           strconv.Itoa(cfg.Id),
 		quitCh:         make(chan struct{}),
-		leaderChangeCh: make(chan bool, 1),
+		leaderChangeCh: leaderChangeCh,
 		proposeCh:      proposeCh,
 		confChangeCh:   confChangeCh,
 	}
@@ -55,9 +66,7 @@ func (e *Embedded) ID() string {
 }
 
 func (e *Embedded) Leader() string {
-	e.leaderMu.RLock()
-	defer e.leaderMu.RUnlock()
-	return e.leaderID
+	return strconv.FormatUint(e.node.leader.Load(), 10)
 }
 
 func (e *Embedded) LeaderChange() <-chan bool {

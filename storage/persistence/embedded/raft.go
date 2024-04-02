@@ -11,8 +11,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/apache/kvrocks-controller/logger"
 	"go.etcd.io/etcd/raft/v3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.uber.org/atomic"
 
 	"go.etcd.io/etcd/client/pkg/v3/fileutil"
 	"go.etcd.io/etcd/client/pkg/v3/types"
@@ -31,10 +33,11 @@ type commit struct {
 
 // A key-value stream backed by raft
 type raftNode struct {
-	proposeC    <-chan string            // proposed messages (k,v)
-	confChangeC <-chan raftpb.ConfChange // proposed cluster config changes
-	commitC     chan<- *commit           // entries committed to log (k,v)
-	errorC      chan<- error             // errors from raft session
+	proposeC       <-chan string            // proposed messages (k,v)
+	confChangeC    <-chan raftpb.ConfChange // proposed cluster config changes
+	leaderChangeCh chan<- bool              // leader changes
+	commitC        chan<- *commit           // entries committed to log (k,v)
+	errorC         chan<- error             // errors from raft session
 
 	id          int      // client ID for raft session
 	peers       []string // raft peer URLs
@@ -42,6 +45,9 @@ type raftNode struct {
 	walDir      string   // path to WAL directory
 	snapDir     string   // path to snapshot directory
 	getSnapshot func() ([]byte, error)
+
+	isLeader atomic.Bool
+	leader   atomic.Uint64
 
 	confState     raftpb.ConfState
 	snapshotIndex uint64
@@ -53,7 +59,7 @@ type raftNode struct {
 	wal         *wal.WAL
 
 	snapshotter      *snap.Snapshotter
-	snapshotterReady chan *snap.Snapshotter // signals when snapshotter is ready
+	snapshotterReady chan<- *snap.Snapshotter // signals when snapshotter is ready
 
 	snapCount  uint64
 	transport  *rafthttp.Transport
@@ -72,34 +78,33 @@ var defaultSnapshotCount uint64 = 10000
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftNode(id int, peers []string, join bool, getSnapshot func() ([]byte, error), proposeC <-chan string,
-	confChangeC <-chan raftpb.ConfChange) (<-chan *commit, <-chan error, <-chan *snap.Snapshotter) {
-
-	commitC := make(chan *commit)
-	errorC := make(chan error)
+	confChangeC <-chan raftpb.ConfChange, leaderChangeCh chan<- bool, commitC chan<- *commit, errorC chan<- error, snapshotterReady chan<- *snap.Snapshotter) *raftNode {
 
 	rc := &raftNode{
-		proposeC:    proposeC,
-		confChangeC: confChangeC,
-		commitC:     commitC,
-		errorC:      errorC,
-		id:          id,
-		peers:       peers,
-		join:        join,
-		walDir:      fmt.Sprintf("raftexample-%d", id),
-		snapDir:     fmt.Sprintf("raftexample-%d-snap", id),
-		getSnapshot: getSnapshot,
-		snapCount:   defaultSnapshotCount,
-		stopCh:      make(chan struct{}),
-		httpStopCh:  make(chan struct{}),
-		httpDoneCh:  make(chan struct{}),
+		proposeC:       proposeC,
+		confChangeC:    confChangeC,
+		leaderChangeCh: leaderChangeCh,
+		commitC:        commitC,
+		errorC:         errorC,
+		id:             id,
+		peers:          peers,
+		join:           join,
+		walDir:         fmt.Sprintf("raftexample-%d", id),
+		snapDir:        fmt.Sprintf("raftexample-%d-snap", id),
+		getSnapshot:    getSnapshot,
+		snapCount:      defaultSnapshotCount,
+		stopCh:         make(chan struct{}),
+		httpStopCh:     make(chan struct{}),
+		httpDoneCh:     make(chan struct{}),
 
-		logger: zap.NewExample(),
+		logger: logger.Get(),
 
-		snapshotterReady: make(chan *snap.Snapshotter, 1),
+		snapshotterReady: snapshotterReady,
 		// rest of structure populated after WAL replay
 	}
+	rc.isLeader.Store(false)
 	go rc.startRaft()
-	return commitC, errorC, rc.snapshotterReady
+	return rc
 }
 
 func (rc *raftNode) saveSnap(snap raftpb.Snapshot) error {
@@ -300,9 +305,13 @@ func (rc *raftNode) startRaft() {
 		ServerStats: stats.NewServerStats("", ""),
 		LeaderStats: stats.NewLeaderStats(zap.NewExample(), strconv.Itoa(rc.id)),
 		ErrorC:      make(chan error),
+
+		DialRetryFrequency: 1,
 	}
 
-	rc.transport.Start()
+	if err := rc.transport.Start(); err != nil {
+		logger.Get().With(zap.Error(err)).Panic("Failed to start raft http server")
+	}
 	for i := range rc.peers {
 		if i+1 != rc.id {
 			rc.transport.AddPeer(types.ID(i+1), []string{rc.peers[i]})
@@ -439,6 +448,11 @@ func (rc *raftNode) serveChannels() {
 
 		// store raft entries to wal, then publish over commit channel
 		case rd := <-rc.node.Ready():
+			isLeader := rd.RaftState == raft.StateLeader
+			rc.leader.Store(rd.Lead)
+			if rc.isLeader.CAS(!isLeader, isLeader) {
+				rc.leaderChangeCh <- isLeader
+			}
 			// Must save the snapshot file and WAL snapshot entry before saving any other entries
 			// or hardstate to ensure that recovery after a snapshot restore is possible.
 			if !raft.IsEmptySnap(rd.Snapshot) {

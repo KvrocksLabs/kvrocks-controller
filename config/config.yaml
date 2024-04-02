@@ -22,7 +22,13 @@ addr: "127.0.0.1:9379"
 # Which storage engine should be used by controller
 # options: etcd, zookeeper
 # default: etcd
-storage_type: etcd
+storage_type: embedded
+
+embedded:
+  addrs:
+    - "127.0.0.1:1212"
+#    - "127.0.0.1:1213"
+  id: 1
 
 etcd:
   addrs:
