@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/apache/kvrocks-controller/metadata"
@@ -13,16 +12,42 @@ import (
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 )
 
+type Peer struct {
+	Api  string `yaml:"api"`
+	Raft string `yaml:"raft"`
+}
+
 type Config struct {
-	Addrs []string `yaml:"addrs"`
-	Id    int      `yaml:"id"`
+	Peers []Peer `yaml:"peers"`
+}
+
+func parseConfig(id string, cfg *Config) (int, []string, []string, error) {
+	apiPeers := make([]string, len(cfg.Peers))
+	raftPeers := make([]string, len(cfg.Peers))
+	nodeId := -1
+	for i, peer := range cfg.Peers {
+		if peer.Api == id {
+			nodeId = i + 1
+		}
+		apiPeers[i] = peer.Api
+		if !strings.HasPrefix(peer.Raft, "http://") {
+			raftPeers[i] = fmt.Sprintf("http://%s", peer.Raft)
+		} else {
+			raftPeers[i] = peer.Raft
+		}
+	}
+	if nodeId == -1 {
+		return 0, apiPeers, raftPeers, errors.New(fmt.Sprintf("Address %s is not in embedded store peers configuration", id))
+	}
+	return nodeId, apiPeers, raftPeers, nil
 }
 
 type Embedded struct {
 	kv   *kv
 	node *raftNode
 
-	myID string
+	myID    string
+	PeerIDs []string
 
 	quitCh         chan struct{}
 	leaderChangeCh <-chan bool
@@ -30,7 +55,7 @@ type Embedded struct {
 	confChangeCh   chan raftpb.ConfChange
 }
 
-func New(_ string, cfg *Config) (*Embedded, error) {
+func New(id string, cfg *Config) (*Embedded, error) {
 	proposeCh := make(chan string)
 	confChangeCh := make(chan raftpb.ConfChange)
 	leaderChangeCh := make(chan bool)
@@ -40,19 +65,19 @@ func New(_ string, cfg *Config) (*Embedded, error) {
 
 	var kvs *kv
 	getSnapshot := func() ([]byte, error) { return kvs.getSnapshot() }
-	for i, addr := range cfg.Addrs {
-		if !strings.HasPrefix(addr, "http://") {
-			cfg.Addrs[i] = fmt.Sprintf("http://%s", addr)
-		}
+	nodeId, apiPeers, raftPeers, err := parseConfig(id, cfg)
+	if err != nil {
+		return nil, err
 	}
-	node := newRaftNode(cfg.Id, cfg.Addrs, false, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
+	node := newRaftNode(nodeId, raftPeers, false, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
 
 	kvs = newKv(<-snapshotterReady, proposeCh, commitCh, errorCh)
 
 	embedded := Embedded{
 		kv:             kvs,
 		node:           node,
-		myID:           strconv.Itoa(cfg.Id),
+		myID:           id,
+		PeerIDs:        apiPeers,
 		quitCh:         make(chan struct{}),
 		leaderChangeCh: leaderChangeCh,
 		proposeCh:      proposeCh,
@@ -66,7 +91,10 @@ func (e *Embedded) ID() string {
 }
 
 func (e *Embedded) Leader() string {
-	return strconv.FormatUint(e.node.leader.Load(), 10)
+	if e.node.leader.Load() == 0 {
+		return e.myID
+	}
+	return e.PeerIDs[e.node.leader.Load()-1]
 }
 
 func (e *Embedded) LeaderChange() <-chan bool {

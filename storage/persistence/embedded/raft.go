@@ -448,10 +448,12 @@ func (rc *raftNode) serveChannels() {
 
 		// store raft entries to wal, then publish over commit channel
 		case rd := <-rc.node.Ready():
-			isLeader := rd.RaftState == raft.StateLeader
-			rc.leader.Store(rd.Lead)
-			if rc.isLeader.CAS(!isLeader, isLeader) {
-				rc.leaderChangeCh <- isLeader
+			if rd.SoftState != nil {
+				isLeader := rd.RaftState == raft.StateLeader
+				rc.leader.Store(rd.Lead)
+				if rc.isLeader.CAS(!isLeader, isLeader) {
+					rc.leaderChangeCh <- isLeader
+				}
 			}
 			// Must save the snapshot file and WAL snapshot entry before saving any other entries
 			// or hardstate to ensure that recovery after a snapshot restore is possible.
