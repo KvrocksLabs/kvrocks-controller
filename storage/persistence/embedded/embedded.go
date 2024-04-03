@@ -1,15 +1,22 @@
 package embedded
 
 import (
+	"bytes"
 	"context"
+	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/apache/kvrocks-controller/logger"
 	"github.com/apache/kvrocks-controller/metadata"
 	"github.com/apache/kvrocks-controller/storage/persistence"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
+	"go.uber.org/zap"
 )
 
 type Peer struct {
@@ -19,6 +26,7 @@ type Peer struct {
 
 type Config struct {
 	Peers []Peer `yaml:"peers"`
+	Join  bool   `yaml:"join"`
 }
 
 func parseConfig(id string, cfg *Config) (int, []string, []string, error) {
@@ -43,7 +51,10 @@ func parseConfig(id string, cfg *Config) (int, []string, []string, error) {
 }
 
 type Embedded struct {
-	kv   *kv
+	kv          map[string][]byte
+	kvMu        sync.RWMutex
+	snapshotter *snap.Snapshotter
+
 	node *raftNode
 
 	myID    string
@@ -56,6 +67,11 @@ type Embedded struct {
 }
 
 func New(id string, cfg *Config) (*Embedded, error) {
+	nodeId, apiPeers, raftPeers, err := parseConfig(id, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	proposeCh := make(chan string)
 	confChangeCh := make(chan raftpb.ConfChange)
 	leaderChangeCh := make(chan bool)
@@ -63,19 +79,8 @@ func New(id string, cfg *Config) (*Embedded, error) {
 	errorCh := make(chan error)
 	snapshotterReady := make(chan *snap.Snapshotter, 1)
 
-	var kvs *kv
-	getSnapshot := func() ([]byte, error) { return kvs.getSnapshot() }
-	nodeId, apiPeers, raftPeers, err := parseConfig(id, cfg)
-	if err != nil {
-		return nil, err
-	}
-	node := newRaftNode(nodeId, raftPeers, false, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
-
-	kvs = newKv(<-snapshotterReady, proposeCh, commitCh, errorCh)
-
-	embedded := Embedded{
-		kv:             kvs,
-		node:           node,
+	e := &Embedded{
+		kv:             make(map[string][]byte),
 		myID:           id,
 		PeerIDs:        apiPeers,
 		quitCh:         make(chan struct{}),
@@ -83,7 +88,89 @@ func New(id string, cfg *Config) (*Embedded, error) {
 		proposeCh:      proposeCh,
 		confChangeCh:   confChangeCh,
 	}
-	return &embedded, nil
+
+	getSnapshot := func() ([]byte, error) {
+		e.kvMu.RLock()
+		defer e.kvMu.RUnlock()
+		return json.Marshal(e.kv)
+	}
+	// start raft node synchronization loop
+	e.node = newRaftNode(nodeId, raftPeers, cfg.Join, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
+
+	// block until snapshotter initialized
+	e.snapshotter = <-snapshotterReady
+	snapshot, err := e.loadSnapshot()
+	if err != nil {
+		logger.Get().With(zap.Error(err)).Panic("Failed to initialize snapshot")
+	}
+	if snapshot != nil {
+		logger.Get().Sugar().Infof("loading snapshot at term %d and index %d", snapshot.Metadata.Term, snapshot.Metadata.Index)
+		if err := e.recoverFromSnapshot(snapshot.Data); err != nil {
+			logger.Get().With(zap.Error(err)).Error("Failed to recover snapshot")
+		}
+	}
+
+	go e.readCommits(commitCh, errorCh)
+	return e, nil
+}
+
+func (e *Embedded) loadSnapshot() (*raftpb.Snapshot, error) {
+	if snapshot, err := e.snapshotter.Load(); err != nil {
+		if errors.Is(err, snap.ErrNoSnapshot) || errors.Is(err, snap.ErrEmptySnapshot) {
+			return nil, nil
+		}
+		return nil, err
+	} else {
+		return snapshot, nil
+	}
+}
+func (e *Embedded) recoverFromSnapshot(snapshot []byte) error {
+	var store map[string][]byte
+	if err := json.Unmarshal(snapshot, &store); err != nil {
+		return err
+	}
+	e.kvMu.Lock()
+	defer e.kvMu.Unlock()
+	e.kv = store
+	return nil
+}
+
+func (e *Embedded) readCommits(commitCh <-chan *commit, errorCh <-chan error) {
+	for c := range commitCh {
+		if c == nil {
+			// signaled to load snapshot
+			snapshot, err := e.loadSnapshot()
+			if err != nil {
+				logger.Get().With(zap.Error(err)).Error("Failed to load snapshot")
+			}
+			if snapshot != nil {
+				logger.Get().Sugar().Infof("loading snapshot at term %d and index %d", snapshot.Metadata.Term, snapshot.Metadata.Index)
+				if err := e.recoverFromSnapshot(snapshot.Data); err != nil {
+					logger.Get().With(zap.Error(err)).Error("Failed to recover snapshot")
+				}
+			}
+			continue
+		}
+
+		for _, data := range c.data {
+			var entry persistence.Entry
+			dec := gob.NewDecoder(bytes.NewBufferString(data))
+			if err := dec.Decode(&entry); err != nil {
+				logger.Get().With(zap.Error(err)).Error("Failed to decode message")
+			}
+			e.kvMu.Lock()
+			if entry.Value == nil {
+				delete(e.kv, entry.Key)
+			} else {
+				e.kv[entry.Key] = entry.Value
+			}
+			e.kvMu.Unlock()
+		}
+		close(c.applyDoneC)
+	}
+	if err, ok := <-errorCh; ok {
+		logger.Get().With(zap.Error(err)).Error("Error occurred during reading commits")
+	}
 }
 
 func (e *Embedded) ID() string {
@@ -101,17 +188,25 @@ func (e *Embedded) LeaderChange() <-chan bool {
 	return e.leaderChangeCh
 }
 
-func (e *Embedded) IsReady(_ context.Context) bool {
-	select {
-	case <-e.quitCh:
-		return false
-	default:
-		return true
+func (e *Embedded) IsReady(ctx context.Context) bool {
+	for {
+		select {
+		case <-e.quitCh:
+			return false
+		case <-time.After(100 * time.Millisecond):
+			if e.node.leader.Load() != 0 {
+				return true
+			}
+		case <-ctx.Done():
+			return e.node.leader.Load() != 0
+		}
 	}
 }
 
 func (e *Embedded) Get(_ context.Context, key string) ([]byte, error) {
-	value, ok := e.kv.Get(key)
+	e.kvMu.RLock()
+	defer e.kvMu.RUnlock()
+	value, ok := e.kv[key]
 	if !ok {
 		return nil, metadata.ErrEntryNoExists
 	}
@@ -129,32 +224,39 @@ func (e *Embedded) Exists(ctx context.Context, key string) (bool, error) {
 	return true, nil
 }
 
+func (e *Embedded) Propose(k string, v []byte) {
+	var buf strings.Builder
+	if err := gob.NewEncoder(&buf).Encode(persistence.Entry{Key: k, Value: v}); err != nil {
+		logger.Get().With(zap.Error(err)).Error("Failed to propose changes")
+	}
+	e.proposeCh <- buf.String()
+}
+
 func (e *Embedded) Set(_ context.Context, key string, value []byte) error {
-	e.kv.Propose(key, value)
+	e.Propose(key, value)
 	return nil
 }
 
 func (e *Embedded) Delete(_ context.Context, key string) error {
-	e.kv.Propose(key, nil)
+	e.Propose(key, nil)
 	return nil
 }
 
 func (e *Embedded) List(_ context.Context, prefix string) ([]persistence.Entry, error) {
-	kvs := e.kv.List(prefix)
-	prefixLen := len(prefix)
 	entries := make([]persistence.Entry, 0)
-	for _, entry := range kvs {
-		if entry.Key == prefix {
+	prefixLen := len(prefix)
+	e.kvMu.RLock()
+	defer e.kvMu.RUnlock()
+	//TODO use trie to accelerate query
+	for k, v := range e.kv {
+		if !strings.HasPrefix(k, prefix) || k == prefix {
 			continue
 		}
-		key := strings.TrimLeft(entry.Key[prefixLen+1:], "/")
+		key := strings.TrimLeft(k[prefixLen+1:], "/")
 		if strings.ContainsRune(key, '/') {
 			continue
 		}
-		entries = append(entries, persistence.Entry{
-			Key:   key,
-			Value: entry.Value,
-		})
+		entries = append(entries, persistence.Entry{Key: key, Value: v})
 	}
 	return entries, nil
 }
