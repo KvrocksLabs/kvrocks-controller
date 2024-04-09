@@ -370,7 +370,11 @@ func NodeInfoCmd(ctx context.Context, node *metadata.NodeInfo) (*NodeInfo, error
 	return nodeInfo, nil
 }
 
-func SyncClusterInfo2Node(ctx context.Context, node *metadata.NodeInfo, clusterStr string, ver int64) error {
+func SyncClusterInfo2Node(ctx context.Context, node *metadata.NodeInfo, cluster *metadata.Cluster) error {
+	clusterStr, err := cluster.ToSlotString()
+	if err != nil {
+		return err
+	}
 	cli, err := GetRedisClient(ctx, node)
 	if err != nil {
 		return err
@@ -379,7 +383,7 @@ func SyncClusterInfo2Node(ctx context.Context, node *metadata.NodeInfo, clusterS
 	if err != nil {
 		return err
 	}
-	err = cli.Do(ctx, "CLUSTERX", "setnodes", clusterStr, ver).Err()
+	err = cli.Do(ctx, "CLUSTERX", "setnodes", clusterStr, cluster.Version).Err()
 	if err != nil {
 		return err
 	}

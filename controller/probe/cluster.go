@@ -22,6 +22,7 @@ package probe
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/apache/kvrocks-controller/controller/failover"
@@ -42,6 +43,7 @@ type Cluster struct {
 	cluster       string
 	storage       *storage.Storage
 	failOver      *failover.FailOver
+	failureMu     sync.Mutex
 	failureCounts map[string]int64
 	stopCh        chan struct{}
 }
@@ -61,93 +63,91 @@ func (c *Cluster) start() {
 	go c.loop()
 }
 
-func (c *Cluster) probe(ctx context.Context, cluster *metadata.Cluster) (*metadata.Cluster, error) {
-	var latestEpoch int64
-	var latestNode *metadata.NodeInfo
+func (c *Cluster) probeNode(ctx context.Context, node *metadata.NodeInfo) (int64, error) {
+	info, err := util.ClusterInfoCmd(ctx, node)
+	if err != nil {
+		switch err.Error() {
+		case ErrRestoringBackUp.Error():
+			// The node is restoring from backup, just skip it
+			return -1, nil
+		case ErrClusterNotInitialized.Error():
+			return -1, ErrClusterNotInitialized
+		default:
+			return -1, err
+		}
+	}
+	return info.ClusterCurrentEpoch, nil
+}
 
-	password := ""
-	currentClusterStr, _ := cluster.ToSlotString()
-	for index, shard := range cluster.Shards {
+func (c *Cluster) increaseFailureCount(index int, node *metadata.NodeInfo) {
+	log := logger.Get().With(
+		zap.String("id", node.ID),
+		zap.String("role", node.Role),
+		zap.String("addr", node.Addr),
+	)
+
+	c.failureMu.Lock()
+	if _, ok := c.failureCounts[node.Addr]; !ok {
+		c.failureCounts[node.Addr] = 0
+	}
+	c.failureCounts[node.Addr] += 1
+	count := c.failureCounts[node.Addr]
+	c.failureMu.Unlock()
+
+	if count%c.failOver.Config().MaxPingCount == 0 {
+		err := c.failOver.AddNode(c.namespace, c.cluster, index, *node, failover.AutoType)
+		if err != nil {
+			log.With(zap.Error(err)).Warn("Failed to add the node into the fail over candidates")
+			return
+		}
+		log.Info("Add the node into the fail over candidates")
+	}
+}
+
+func (c *Cluster) resetFailureCount(node *metadata.NodeInfo) {
+	c.failureMu.Lock()
+	delete(c.failureCounts, node.Addr)
+	c.failureMu.Unlock()
+}
+
+func (c *Cluster) probe(ctx context.Context, cluster *metadata.Cluster) error {
+	for i, shard := range cluster.Shards {
 		for _, node := range shard.Nodes {
-			logger := logger.Get().With(
-				zap.String("id", node.ID),
-				zap.String("role", node.Role),
-				zap.String("addr", node.Addr),
-			)
-			// all nodes in the cluster should have the same password,
-			// so we just use the first node's password
-			if password == "" {
-				password = node.Password
-			}
-			if _, ok := c.failureCounts[node.Addr]; !ok {
-				c.failureCounts[node.Addr] = 0
-			}
-			info, err := util.ClusterInfoCmd(ctx, &node)
-			if err != nil {
-				if err.Error() == ErrRestoringBackUp.Error() {
-					continue
+			go func(shardIdx int, node metadata.NodeInfo) {
+				log := logger.Get().With(
+					zap.String("id", node.ID),
+					zap.String("role", node.Role),
+					zap.String("addr", node.Addr),
+				)
+				version, err := c.probeNode(ctx, &node)
+				if err != nil && !errors.Is(err, ErrClusterNotInitialized) {
+					c.increaseFailureCount(shardIdx, &node)
+					log.With(zap.Error(err)).Error("Failed to probe the node")
+					return
 				}
-				if err.Error() == ErrClusterNotInitialized.Error() {
-					// Maybe the node was restarted, just re-sync the cluster info
-					clusterStr, _ := cluster.ToSlotString()
-					err = util.SyncClusterInfo2Node(ctx, &node, clusterStr, cluster.Version)
+				log.Debug("Probe the cluster node ")
+
+				if version < cluster.Version {
+					// sync the cluster to the latest version
+					err := util.SyncClusterInfo2Node(ctx, &node, cluster)
 					if err != nil {
-						logger.With(zap.Error(err)).Warn("Failed to re-sync the cluster info")
+						log.With(zap.Error(err)).Error("Failed to sync the cluster info")
 					}
-					continue
+				} else if version > cluster.Version {
+					log.With(
+						zap.Int64("node.version", version),
+						zap.Int64("cluster.version", cluster.Version),
+					).Warn("The node is in a higher version")
 				}
-				c.failureCounts[node.Addr] += 1
-				if c.failureCounts[node.Addr]%c.failOver.Config().MaxPingCount == 0 {
-					err = c.failOver.AddNode(c.namespace, c.cluster, index, node, failover.AutoType)
-					logger.With(zap.Error(err)).Warn("Add the node into the fail over candidates")
-				} else {
-					logger.With(
-						zap.Error(err),
-						zap.Int64("failure_count", c.failureCounts[node.Addr]),
-					).Warn("Failed to ping the node")
-				}
-				continue
-			}
-			if info.ClusterCurrentEpoch < cluster.Version {
-				err := util.SyncClusterInfo2Node(ctx, &node, currentClusterStr, cluster.Version)
-				if err != nil {
-					logger.With(
-						zap.Error(err),
-						zap.Int64("cluster_version", cluster.Version),
-						zap.Int64("node_version", info.ClusterCurrentEpoch),
-					).Info("Failed to sync the cluster info")
-				}
-			}
-
-			if info.ClusterMyEpoch > latestEpoch {
-				latestEpoch = info.ClusterMyEpoch
-				latestNode = &node
-			}
-			c.failureCounts[node.Addr] = 0
+				c.resetFailureCount(&node)
+			}(i, node)
 		}
 	}
-
-	if latestEpoch > cluster.Version {
-		latestClusterStr, err := util.ClusterNodesCmd(ctx, latestNode)
-		if err != nil {
-			return nil, err
-		}
-		latestClusterInfo, err := metadata.ParseCluster(latestClusterStr)
-		if err != nil {
-			return nil, err
-		}
-		latestClusterInfo.SetPassword(password)
-		err = c.storage.UpdateCluster(ctx, c.namespace, latestClusterInfo)
-		if err != nil {
-			return nil, err
-		}
-		return latestClusterInfo, nil
-	}
-	return cluster, nil
+	return nil
 }
 
 func (c *Cluster) loop() {
-	logger := logger.Get().With(
+	log := logger.Get().With(
 		zap.String("namespace", c.namespace),
 		zap.String("cluster", c.cluster),
 	)
@@ -159,13 +159,13 @@ func (c *Cluster) loop() {
 		case <-probeTicker.C:
 			clusterInfo, err := c.storage.GetClusterInfo(ctx, c.namespace, c.cluster)
 			if err != nil {
-				logger.With(
+				log.With(
 					zap.Error(err),
 				).Error("Failed to get the cluster info from the storage")
 				break
 			}
-			if _, err := c.probe(ctx, clusterInfo); err != nil {
-				logger.With(zap.Error(err)).Error("Failed to probe the cluster")
+			if err := c.probe(ctx, clusterInfo); err != nil {
+				log.With(zap.Error(err)).Error("Failed to probe the cluster")
 				break
 			}
 		case <-c.stopCh:
