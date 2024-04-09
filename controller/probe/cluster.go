@@ -110,7 +110,7 @@ func (c *Cluster) resetFailureCount(node *metadata.NodeInfo) {
 	c.failureMu.Unlock()
 }
 
-func (c *Cluster) probe(ctx context.Context, cluster *metadata.Cluster) error {
+func (c *Cluster) probe(ctx context.Context, cluster *metadata.Cluster) {
 	for i, shard := range cluster.Shards {
 		for _, node := range shard.Nodes {
 			go func(shardIdx int, node metadata.NodeInfo) {
@@ -143,7 +143,6 @@ func (c *Cluster) probe(ctx context.Context, cluster *metadata.Cluster) error {
 			}(i, node)
 		}
 	}
-	return nil
 }
 
 func (c *Cluster) loop() {
@@ -164,10 +163,7 @@ func (c *Cluster) loop() {
 				).Error("Failed to get the cluster info from the storage")
 				break
 			}
-			if err := c.probe(ctx, clusterInfo); err != nil {
-				log.With(zap.Error(err)).Error("Failed to probe the cluster")
-				break
-			}
+			c.probe(ctx, clusterInfo)
 		case <-c.stopCh:
 			return
 		}

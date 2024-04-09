@@ -23,6 +23,7 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/atomic"
 	"golang.org/x/net/context"
 
 	"go.uber.org/zap"
@@ -49,31 +50,38 @@ type Cluster struct {
 	tasks     map[string]*storage.FailoverTask
 	tasksIdx  []string
 
-	quitCh    chan struct{}
-	closeOnce sync.Once
-	rw        sync.RWMutex
+	closed   atomic.Bool
+	ctx      context.Context
+	cancelFn context.CancelFunc
+
+	rw sync.RWMutex
+	wg sync.WaitGroup
 }
 
 // NewCluster return a Cluster instance and start schedule goroutine
 func NewCluster(ns, cluster string, stor *storage.Storage, cfg *config.FailOverConfig) *Cluster {
-	fn := &Cluster{
+	ctx, cancelFn := context.WithCancel(context.Background())
+	c := &Cluster{
 		namespace: ns,
 		cluster:   cluster,
 		storage:   stor,
 		tasks:     make(map[string]*storage.FailoverTask),
-		quitCh:    make(chan struct{}),
 		config:    cfg,
+		ctx:       ctx,
+		cancelFn:  cancelFn,
 	}
-	go fn.loop()
-	return fn
+
+	c.wg.Add(1)
+	go c.loop()
+	return c
 }
 
 // Close will release the resource when closing
-func (c *Cluster) Close() error {
-	c.closeOnce.Do(func() {
-		close(c.quitCh)
-	})
-	return nil
+func (c *Cluster) Close() {
+	if !c.closed.CAS(false, true) {
+		return
+	}
+	c.cancelFn()
 }
 
 func (c *Cluster) AddTask(task *storage.FailoverTask) error {
@@ -145,14 +153,17 @@ func (c *Cluster) purgeTasks() {
 }
 
 func (c *Cluster) loop() {
-	ctx := context.Background()
+	defer c.wg.Done()
+
 	ticker := time.NewTicker(time.Duration(c.config.PingIntervalSeconds) * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
+		case <-c.ctx.Done():
+			return
 		case <-ticker.C:
 			c.rw.RLock()
-			nodesCount, err := c.storage.ClusterNodesCounts(ctx, c.namespace, c.cluster)
+			nodesCount, err := c.storage.ClusterNodesCounts(c.ctx, c.namespace, c.cluster)
 			if err != nil {
 				c.rw.RUnlock()
 				break
@@ -172,17 +183,15 @@ func (c *Cluster) loop() {
 				task := c.tasks[nodeAddr]
 				c.removeTask(idx)
 				if task.Type == ManualType {
-					c.promoteMaster(ctx, task)
+					c.promoteMaster(c.ctx, task)
 					continue
 				}
-				if err := util.PingCmd(ctx, &task.Node); err == nil {
+				if err := util.PingCmd(c.ctx, &task.Node); err == nil {
 					continue
 				}
-				c.promoteMaster(ctx, task)
+				c.promoteMaster(c.ctx, task)
 			}
 			c.rw.RUnlock()
-		case <-c.quitCh:
-			return
 		}
 	}
 }
