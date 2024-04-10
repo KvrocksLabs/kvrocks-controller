@@ -23,6 +23,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/apache/kvrocks-controller/config"
@@ -86,6 +87,10 @@ func main() {
 	if err := cfg.Validate(); err != nil {
 		logger.Get().With(zap.Error(err)).Error("Failed to validate the config file")
 		return
+	}
+	hostPort := strings.Split(cfg.Addr, ":")
+	if hostPort[0] == "0.0.0.0" || hostPort[0] == "127.0.0.1" {
+		logger.Get().Warn("Leader forward may not work if the host is " + hostPort[0])
 	}
 	srv, err := server.NewServer(cfg)
 	if err != nil {

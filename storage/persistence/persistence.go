@@ -28,17 +28,27 @@ type Entry struct {
 	Value []byte
 }
 
-type Persistence interface {
+// Elector is a leader election interface,
+// it is used to elect a leader from a group of electors.
+type Elector interface {
 	ID() string
 	Leader() string
 	LeaderChange() <-chan bool
-	IsReady(ctx context.Context) bool
+}
 
+// KVStore is a key-value store interface
+type KVStore interface {
 	Get(ctx context.Context, key string) ([]byte, error)
 	Exists(ctx context.Context, key string) (bool, error)
 	Set(ctx context.Context, key string, value []byte) error
 	Delete(ctx context.Context, key string) error
 	List(ctx context.Context, prefix string) ([]Entry, error)
+}
 
+type Persistence interface {
+	Elector
+	KVStore
+
+	IsReady(ctx context.Context) bool
 	Close() error
 }

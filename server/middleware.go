@@ -69,7 +69,8 @@ func RedirectIfNotLeader(c *gin.Context) {
 	if !storage.IsLeader() {
 		if !c.GetBool(consts.HeaderIsRedirect) {
 			c.Set(consts.HeaderIsRedirect, true)
-			c.Redirect(http.StatusTemporaryRedirect, "http://"+storage.Leader()+c.Request.RequestURI)
+			peerAddr := extractAddrFromSessionID(storage.Leader())
+			c.Redirect(http.StatusTemporaryRedirect, "http://"+peerAddr+c.Request.RequestURI)
 		} else {
 			responseBadRequest(c, errors.New("too many redirects"))
 		}

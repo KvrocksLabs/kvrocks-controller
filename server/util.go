@@ -21,9 +21,12 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/apache/kvrocks-controller/metadata"
+	"github.com/apache/kvrocks-controller/util"
 
 	"github.com/gin-gonic/gin"
 )
@@ -67,4 +70,21 @@ func responseError(c *gin.Context, err error) {
 	c.JSON(code, Response{
 		Error: &Error{Message: err.Error()},
 	})
+}
+
+// generateSessionID encodes the addr to a session ID,
+// which is used to identify the session. And then can be used to
+// parse the leader listening address back.
+func generateSessionID(addr string) string {
+	return fmt.Sprintf("%s/%s", util.RandString(8), addr)
+}
+
+// extractAddrFromSessionID decodes the session ID to the addr.
+func extractAddrFromSessionID(sessionID string) string {
+	parts := strings.Split(sessionID, "/")
+	if len(parts) != 2 {
+		// for the old session ID format, we use the addr as the session ID
+		return sessionID
+	}
+	return parts[1]
 }

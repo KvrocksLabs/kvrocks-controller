@@ -50,18 +50,19 @@ type Server struct {
 func NewServer(cfg *config.Config) (*Server, error) {
 	var persist persistence.Persistence
 	var err error
+
+	sessionID := generateSessionID(cfg.Addr)
 	switch {
 	case strings.EqualFold(cfg.StorageType, "etcd"):
 		logger.Get().Info("Use Etcd as storage")
-		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
+		persist, err = etcd.New(sessionID, cfg.Etcd)
 	case strings.EqualFold(cfg.StorageType, "zookeeper"):
 		logger.Get().Info("Use Zookeeper as storage")
-		persist, err = zookeeper.New(cfg.Addr, cfg.Zookeeper)
+		persist, err = zookeeper.New(sessionID, cfg.Zookeeper)
 	default:
 		logger.Get().Info("Use Etcd as default storage")
-		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
+		persist, err = etcd.New(sessionID, cfg.Etcd)
 	}
-
 	if err != nil {
 		return nil, err
 	}
