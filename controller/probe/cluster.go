@@ -79,7 +79,7 @@ func (c *Cluster) probeNode(ctx context.Context, node *metadata.NodeInfo) (int64
 	return info.ClusterCurrentEpoch, nil
 }
 
-func (c *Cluster) increaseFailureCount(index int, node *metadata.NodeInfo) {
+func (c *Cluster) increaseFailureCount(index int, node *metadata.NodeInfo) int64 {
 	log := logger.Get().With(
 		zap.String("id", node.ID),
 		zap.String("role", node.Role),
@@ -98,10 +98,11 @@ func (c *Cluster) increaseFailureCount(index int, node *metadata.NodeInfo) {
 		err := c.failOver.AddNode(c.namespace, c.cluster, index, *node, failover.AutoType)
 		if err != nil {
 			log.With(zap.Error(err)).Warn("Failed to add the node into the fail over candidates")
-			return
+		} else {
+			log.With(zap.Int64("failure_count", count)).Info("Add the node into the fail over candidates")
 		}
-		log.Info("Add the node into the fail over candidates")
 	}
+	return count
 }
 
 func (c *Cluster) resetFailureCount(node *metadata.NodeInfo) {
@@ -121,11 +122,13 @@ func (c *Cluster) probe(ctx context.Context, cluster *metadata.Cluster) {
 				)
 				version, err := c.probeNode(ctx, &node)
 				if err != nil && !errors.Is(err, ErrClusterNotInitialized) {
-					c.increaseFailureCount(shardIdx, &node)
-					log.With(zap.Error(err)).Error("Failed to probe the node")
+					failureCount := c.increaseFailureCount(shardIdx, &node)
+					log.With(zap.Error(err),
+						zap.Int64("failure_count", failureCount),
+					).Error("Failed to probe the node")
 					return
 				}
-				log.Debug("Probe the cluster node ")
+				log.Debug("Probe the cluster node")
 
 				if version < cluster.Version {
 					// sync the cluster to the latest version
