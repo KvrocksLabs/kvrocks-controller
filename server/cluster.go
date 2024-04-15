@@ -166,7 +166,7 @@ func (handler *ClusterHandler) Remove(c *gin.Context) {
 	responseOK(c, "ok")
 }
 
-func (hander *ClusterHandler) Import(c *gin.Context) {
+func (handler *ClusterHandler) Import(c *gin.Context) {
 	namespace := c.Param("namespace")
 	clusterName := c.Param("cluster")
 	var req struct {
@@ -198,7 +198,7 @@ func (hander *ClusterHandler) Import(c *gin.Context) {
 	clusterInfo.SetPassword(req.Password)
 
 	clusterInfo.Name = clusterName
-	if err := hander.storage.CreateCluster(c, namespace, clusterInfo); err != nil {
+	if err := handler.storage.CreateCluster(c, namespace, clusterInfo); err != nil {
 		responseError(c, err)
 		return
 	}

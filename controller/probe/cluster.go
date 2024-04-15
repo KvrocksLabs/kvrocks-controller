@@ -94,6 +94,11 @@ func (c *Cluster) increaseFailureCount(index int, node *metadata.NodeInfo) int64
 	count := c.failureCounts[node.Addr]
 	c.failureMu.Unlock()
 
+	/// don't add the node into the failover candidates if it's not a master node
+	if node.Role != metadata.RoleMaster {
+		return count
+	}
+
 	if count%c.failOver.Config().MaxPingCount == 0 {
 		err := c.failOver.AddNode(c.namespace, c.cluster, index, *node, failover.AutoType)
 		if err != nil {
