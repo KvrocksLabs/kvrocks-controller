@@ -17,15 +17,22 @@
  * under the License.
  *
  */
-package consts
+package store
 
-const (
-	ContextKeyStore        = "_context_key_storage"
-	ContextKeyCluster      = "_context_key_cluster"
-	ContextKeyClusterShard = "_context_key_cluster_shard"
+import (
+	"fmt"
 )
 
-const (
-	HeaderIsRedirect     = "X-Is-Redirect"
-	HeaderDontDetectHost = "X-Dont-Detect-Host"
-)
+const nsPrefix = "/kvrocks/metadata"
+
+func appendPrefix(ns string) string {
+	return nsPrefix + "/" + ns
+}
+
+func buildClusterPrefix(ns string) string {
+	return fmt.Sprintf("%s/%s/cluster", nsPrefix, ns)
+}
+
+func buildClusterKey(ns, cluster string) string {
+	return fmt.Sprintf("%s/%s", buildClusterPrefix(ns), cluster)
+}

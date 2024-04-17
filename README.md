@@ -39,8 +39,4 @@ $ ./_build/kvctl-server -c config/config.yaml
 ```
 ![image](docs/images/server.gif)
 
-### 2. Create the namespace and cluster via kvctl 
-![image](docs/images/client.gif)
-
-
 For the HTTP API, you can find the [HTTP API(work in progress)](docs/API.md) for more details.

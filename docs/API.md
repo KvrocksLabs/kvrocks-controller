@@ -606,66 +606,21 @@ DELETE /api/v1/namespaces/{namespace}/clusters/{cluster}/shards/{shard}/nodes/{n
 
 ## Migration APIs
 
-### Migrate Slot And Data
-
+### Migrate Slot
 ```shell
-POST /api/v1/namespaces/{namespace}/clusters/{cluster}/shards/migration/slot_data
+POST /api/v1/namespaces/{namespace}/clusters/{cluster}/migrate
 ```
 
 #### Request Body
 
 ```json
 {
-  "source": 0,
   "target": 1,
-  "slot": 123
+  "slot": 123,
+  "slot_only": "false" 
 }
 ```
 
-#### Response JSON Body
-
-* 200
-```json
-{
-  "data": "ok"
-}
-```
-
-* 404
-```json
-{
-  "error": {
-    "message": "the entry does not exist"
-  }
-}
-```
-
-* 5XX
-```json
-{
-  "error": {
-    "message": "DETAIL ERROR STRING"
-  }
-}
-```
-
-### Migrate Slot Only
-
-In this case, it only migrates slot distributions between shards and the data will not be migrated.
-So you MUST ensure that the data is already migrated before you call this API.
-
-```shell
-POST /api/v1/namespaces/{namespace}/clusters/{cluster}/shards/migration/slot_only
-```
-#### Request Body
-
-```json
-{
-  "source": 0,
-  "target": 1,
-  "slots": ["1", "3-4"] 
-}
-```
 #### Response JSON Body
 
 * 200

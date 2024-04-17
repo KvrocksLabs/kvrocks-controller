@@ -27,38 +27,37 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/apache/kvrocks-controller/config"
 	"github.com/apache/kvrocks-controller/controller"
-	"github.com/apache/kvrocks-controller/controller/probe"
 	"github.com/apache/kvrocks-controller/logger"
-	"github.com/apache/kvrocks-controller/storage"
-	"github.com/apache/kvrocks-controller/storage/persistence"
-	"github.com/apache/kvrocks-controller/storage/persistence/etcd"
-	"github.com/apache/kvrocks-controller/storage/persistence/zookeeper"
-	"github.com/gin-gonic/gin"
+	"github.com/apache/kvrocks-controller/store"
+	"github.com/apache/kvrocks-controller/store/engine"
+	"github.com/apache/kvrocks-controller/store/engine/etcd"
+	"github.com/apache/kvrocks-controller/store/engine/zookeeper"
 )
 
 type Server struct {
-	engine      *gin.Engine
-	storage     *storage.Storage
-	healthProbe *probe.Probe
-	controller  *controller.Controller
-	config      *config.Config
-	httpServer  *http.Server
+	engine     *gin.Engine
+	store      *store.ClusterStore
+	controller *controller.Controller
+	config     *config.Config
+	httpServer *http.Server
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
-	var persist persistence.Persistence
+	var persist engine.Engine
 	var err error
 	switch {
 	case strings.EqualFold(cfg.StorageType, "etcd"):
-		logger.Get().Info("Use Etcd as storage")
+		logger.Get().Info("Use Etcd as store")
 		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
 	case strings.EqualFold(cfg.StorageType, "zookeeper"):
-		logger.Get().Info("Use Zookeeper as storage")
+		logger.Get().Info("Use Zookeeper as store")
 		persist, err = zookeeper.New(cfg.Addr, cfg.Zookeeper)
 	default:
-		logger.Get().Info("Use Etcd as default storage")
+		logger.Get().Info("Use Etcd as default store")
 		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
 	}
 
@@ -66,23 +65,20 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return nil, err
 	}
 	if persist == nil {
-		return nil, fmt.Errorf("no found any storage config")
+		return nil, fmt.Errorf("no found any store config")
 	}
-	storage, err := storage.NewStorage(persist)
-	if err != nil {
-		return nil, err
-	}
-	if ok := storage.IsReady(); !ok {
-		return nil, fmt.Errorf("storage is not ready")
+	clusterStore := store.NewClusterStore(persist)
+	if ok := clusterStore.IsReady(context.Background()); !ok {
+		return nil, fmt.Errorf("the cluster store is not ready")
 	}
 
-	ctrl, err := controller.New(storage, cfg)
+	ctrl, err := controller.New(clusterStore, cfg.Controller)
 	if err != nil {
 		return nil, err
 	}
 	gin.SetMode(gin.ReleaseMode)
 	return &Server{
-		storage:    storage,
+		store:      clusterStore,
 		controller: ctrl,
 		config:     cfg,
 		engine:     gin.New(),
@@ -121,8 +117,8 @@ func PProf(c *gin.Context) {
 	}
 }
 
-func (srv *Server) Start() error {
-	if err := srv.controller.Start(); err != nil {
+func (srv *Server) Start(ctx context.Context) error {
+	if err := srv.controller.Start(ctx); err != nil {
 		return err
 	}
 	srv.startAPIServer()
@@ -130,7 +126,7 @@ func (srv *Server) Start() error {
 }
 
 func (srv *Server) Stop() error {
-	_ = srv.controller.Stop()
+	srv.controller.Close()
 	gracefulCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	return srv.httpServer.Shutdown(gracefulCtx)

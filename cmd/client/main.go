@@ -17,15 +17,8 @@
  * under the License.
  *
  */
-package consts
 
-const (
-	ContextKeyStore        = "_context_key_storage"
-	ContextKeyCluster      = "_context_key_cluster"
-	ContextKeyClusterShard = "_context_key_cluster_shard"
-)
+package main
 
-const (
-	HeaderIsRedirect     = "X-Is-Redirect"
-	HeaderDontDetectHost = "X-Dont-Detect-Host"
-)
+func main() {
+}

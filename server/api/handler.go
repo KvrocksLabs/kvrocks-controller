@@ -17,15 +17,23 @@
  * under the License.
  *
  */
-package consts
 
-const (
-	ContextKeyStore        = "_context_key_storage"
-	ContextKeyCluster      = "_context_key_cluster"
-	ContextKeyClusterShard = "_context_key_cluster_shard"
-)
+package api
 
-const (
-	HeaderIsRedirect     = "X-Is-Redirect"
-	HeaderDontDetectHost = "X-Dont-Detect-Host"
-)
+import "github.com/apache/kvrocks-controller/store"
+
+type Handler struct {
+	Namespace *NamespaceHandler
+	Cluster   *ClusterHandler
+	Shard     *ShardHandler
+	Node      *NodeHandler
+}
+
+func NewHandler(s *store.ClusterStore) *Handler {
+	return &Handler{
+		Namespace: &NamespaceHandler{s: s},
+		Cluster:   &ClusterHandler{s: s},
+		Shard:     &ShardHandler{s: s},
+		Node:      &NodeHandler{s: s},
+	}
+}
