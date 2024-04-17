@@ -25,8 +25,8 @@ import (
 	"net"
 	"os"
 
-	"github.com/apache/kvrocks-controller/storage/persistence/etcd"
-	"github.com/apache/kvrocks-controller/storage/persistence/zookeeper"
+	"github.com/apache/kvrocks-controller/store/engine/etcd"
+	"github.com/apache/kvrocks-controller/store/engine/zookeeper"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -57,6 +57,16 @@ type Config struct {
 	Controller  *ControllerConfig `yaml:"controller"`
 }
 
+func DefaultFailOverConfig() *FailOverConfig {
+	return &FailOverConfig{
+		GCIntervalSeconds:   3600,
+		PingIntervalSeconds: 3,
+		MaxPingCount:        5,
+		MinAliveSize:        10,
+		MaxFailureRatio:     0.6,
+	}
+}
+
 func Default() *Config {
 	c := &Config{
 		Etcd: &etcd.Config{
@@ -84,16 +94,6 @@ func (c *Config) Validate() error {
 		return errors.New("min alive size required >= 2")
 	}
 	return nil
-}
-
-func DefaultFailOverConfig() *FailOverConfig {
-	return &FailOverConfig{
-		GCIntervalSeconds:   3600,
-		PingIntervalSeconds: 3,
-		MaxPingCount:        5,
-		MinAliveSize:        10,
-		MaxFailureRatio:     0.6,
-	}
 }
 
 func (c *Config) getAddr() string {

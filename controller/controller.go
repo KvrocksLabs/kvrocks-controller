@@ -20,90 +20,63 @@
 package controller
 
 import (
-	"context"
-	"fmt"
-	"os"
 	"sync"
 
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
 	"github.com/apache/kvrocks-controller/config"
-	"github.com/apache/kvrocks-controller/controller/failover"
-	"github.com/apache/kvrocks-controller/controller/migrate"
-	"github.com/apache/kvrocks-controller/controller/probe"
 	"github.com/apache/kvrocks-controller/logger"
-	"github.com/apache/kvrocks-controller/storage"
-	"github.com/apache/kvrocks-controller/util"
+	"github.com/apache/kvrocks-controller/store"
+)
+
+const (
+	stateInit = iota + 1
+	stateRunning
+	stateClosed
 )
 
 type Controller struct {
-	storage  *storage.Storage
-	probe    *probe.Probe
-	failover *failover.FailOver
-	migrator *migrate.Migrator
-
+	storage  *store.ClusterStore
 	mu       sync.Mutex
-	syncers  map[string]*Syncer
-	isLoaded atomic.Bool
+	clusters map[string]*Cluster
 
-	stopCh    chan struct{}
-	closeOnce sync.Once
+	state atomic.Int32
+
+	wg      sync.WaitGroup
+	closeCh chan struct{}
 }
 
-func New(s *storage.Storage, config *config.Config) (*Controller, error) {
-	failover := failover.New(s, config.Controller.FailOver)
-	return &Controller{
+func New(s *store.ClusterStore, config *config.Config) (*Controller, error) {
+	c := &Controller{
 		storage:  s,
-		failover: failover,
-		migrator: migrate.New(s),
-		probe:    probe.New(s, failover),
-		syncers:  make(map[string]*Syncer, 0),
-		stopCh:   make(chan struct{}),
-	}, nil
+		clusters: make(map[string]*Cluster),
+		closeCh:  make(chan struct{}),
+	}
+	c.state.Store(stateInit)
+	return c, nil
 }
 
 func (c *Controller) Start() error {
+	if !c.state.CAS(stateInit, stateRunning) {
+		return nil
+	}
+
+	c.wg.Add(1)
 	go c.syncLoop()
 	return nil
 }
 
-func (c *Controller) loadModules() error {
-	if c.isLoaded.CAS(false, true) {
-		ctx := context.Background()
-		if err := c.failover.Load(); err != nil {
-			return fmt.Errorf("load failover module: %w", err)
-		}
-		if err := c.probe.Load(ctx); err != nil {
-			return fmt.Errorf("load probe module: %w", err)
-		}
-		if err := c.migrator.Load(ctx); err != nil {
-			return fmt.Errorf("load migration module: %w", err)
-		}
-	}
-	return nil
-}
-
-func (c *Controller) unloadModules() {
-	if c.isLoaded.CAS(true, false) {
-		c.probe.Shutdown()
-		c.failover.Shutdown()
-		c.migrator.Shutdown()
-		c.isLoaded.Store(false)
-	}
-}
-
 func (c *Controller) syncLoop() {
+	defer c.wg.Done()
+
 	prevTermLeader := ""
 	go c.leaderEventLoop()
 	for {
 		select {
 		case <-c.storage.LeaderChange():
 			if c.storage.IsLeader() {
-				if err := c.loadModules(); err != nil {
-					logger.Get().With(zap.Error(err)).Error("Failed to load module, will exit")
-					os.Exit(1)
-				}
+				// TODO: load clusters
 				currentTermLeader := c.storage.Leader()
 				if prevTermLeader == "" {
 					logger.Get().Info("Start as the leader")
@@ -114,28 +87,12 @@ func (c *Controller) syncLoop() {
 				}
 				prevTermLeader = currentTermLeader
 			} else {
-				c.unloadModules()
-				logger.Get().Info("Lost the leader campaign, will unload modules")
+				// TODO: Close all clusters
 			}
-		case <-c.stopCh:
+		case <-c.closeCh:
 			return
 		}
 	}
-}
-
-func (c *Controller) handleEvent(event *storage.Event) {
-	if event.Namespace == "" || event.Cluster == "" {
-		return
-	}
-	key := util.BuildClusterKey(event.Namespace, event.Cluster)
-	c.mu.Lock()
-	if _, ok := c.syncers[key]; !ok {
-		c.syncers[key] = NewSyncer(c.storage)
-	}
-	syncer := c.syncers[key]
-	c.mu.Unlock()
-
-	syncer.Notify(event)
 }
 
 func (c *Controller) leaderEventLoop() {
@@ -145,40 +102,62 @@ func (c *Controller) leaderEventLoop() {
 			if !c.storage.IsLeader() {
 				continue
 			}
-			c.handleEvent(&event)
+			var err error
 			switch event.Type { // nolint
-			case storage.EventCluster:
+			case store.EventCluster:
 				switch event.Command {
-				case storage.CommandCreate:
-					c.probe.AddCluster(event.Namespace, event.Cluster)
-				case storage.CommandRemove:
-					c.probe.RemoveCluster(event.Namespace, event.Cluster)
+				case store.CommandCreate:
+					err = c.addCluster(event.Namespace, event.Cluster)
+				case store.CommandRemove:
+					err = c.removeCluster(event.Namespace, event.Cluster)
 				default:
+					// TODO: update cluster & remove namespace
+				}
+				if err != nil {
+					logger.Get().With(
+						zap.Error(err),
+						zap.String("namespace", event.Namespace),
+						zap.String("cluster", event.Cluster),
+					).Error("Failed to handle cluster event")
 				}
 			default:
 			}
-		case <-c.stopCh:
+		case <-c.closeCh:
 			return
 		}
 	}
 }
 
-func (c *Controller) GetFailOver() *failover.FailOver {
-	return c.failover
+func (c *Controller) addCluster(namespace, clusterName string) error {
+	key := namespace + "/" + clusterName
+	cluster := NewCluster(c.storage, namespace, clusterName)
+	c.mu.Lock()
+	c.clusters[key] = cluster
+	c.mu.Unlock()
+	return nil
 }
 
-func (c *Controller) GetMigrate() *migrate.Migrator {
-	return c.migrator
+func (c *Controller) removeCluster(namespace, clusterName string) error {
+	key := namespace + "/" + clusterName
+	c.mu.Lock()
+	if cluster, ok := c.clusters[key]; ok {
+		cluster.Close()
+	}
+	delete(c.clusters, key)
+	c.mu.Unlock()
+	return nil
 }
 
-func (c *Controller) Stop() error {
-	c.closeOnce.Do(func() {
-		for _, syncer := range c.syncers {
-			syncer.Close()
-		}
-		close(c.stopCh)
-		util.CloseRedisClients()
-		c.unloadModules()
-	})
+func (c *Controller) Close() error {
+	if !c.state.CAS(stateRunning, stateClosed) {
+		return nil
+	}
+	c.mu.Lock()
+	for _, cluster := range c.clusters {
+		cluster.Close()
+	}
+	c.mu.Unlock()
+	close(c.closeCh)
+	c.wg.Wait()
 	return nil
 }

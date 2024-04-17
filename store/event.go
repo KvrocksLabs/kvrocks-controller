@@ -17,15 +17,29 @@
  * under the License.
  *
  */
-package consts
+package store
+
+type EventType int
+type Command int
 
 const (
-	ContextKeyStore        = "_context_key_storage"
-	ContextKeyCluster      = "_context_key_cluster"
-	ContextKeyClusterShard = "_context_key_cluster_shard"
+	EventNamespace EventType = iota + 1
+	EventCluster
+	EventShard
+	EventNode
 )
 
 const (
-	HeaderIsRedirect     = "X-Is-Redirect"
-	HeaderDontDetectHost = "X-Dont-Detect-Host"
+	CommandCreate = iota + 1
+	CommandRemove
 )
+
+type Event struct {
+	Namespace string
+	Cluster   string
+	Shard     int
+	NodeID    string
+	Type      EventType
+	Command   Command
+	Data      interface{}
+}

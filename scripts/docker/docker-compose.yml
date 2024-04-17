@@ -19,6 +19,20 @@
 version: "3.7"
 
 services:
+  kvrocks0:
+    image: "apache/kvrocks:nightly"
+    container_name: kvrocks0
+    ports:
+      - "7770:7770"
+    entrypoint:
+     - kvrocks
+     - "--bind"
+     - "0.0.0.0"
+     - "--port"
+     - "7770"
+     - "--cluster-enabled"
+     - "yes"
+
   etcd0:
     image: "quay.io/coreos/etcd:latest"
     container_name: etcd0
@@ -35,9 +49,9 @@ services:
       - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
       - ETCD_INITIAL_CLUSTER=etcd0=http://etcd0:2380
       - ETCD_INITIAL_CLUSTER_STATE=new
+
   zookeeper0:
     image: "zookeeper:latest"
     container_name: zookeeper0
     ports:
       - "2181:2181"
-

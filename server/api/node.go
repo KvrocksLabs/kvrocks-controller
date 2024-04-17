@@ -17,15 +17,28 @@
  * under the License.
  *
  */
-package consts
+package api
 
-const (
-	ContextKeyStore        = "_context_key_storage"
-	ContextKeyCluster      = "_context_key_cluster"
-	ContextKeyClusterShard = "_context_key_cluster_shard"
+import (
+	"github.com/apache/kvrocks-controller/consts"
+	"github.com/apache/kvrocks-controller/server/helper"
+	"github.com/gin-gonic/gin"
+
+	"github.com/apache/kvrocks-controller/store"
 )
 
-const (
-	HeaderIsRedirect     = "X-Is-Redirect"
-	HeaderDontDetectHost = "X-Dont-Detect-Host"
-)
+type NodeHandler struct {
+	s store.Store
+}
+
+func (handler *NodeHandler) List(c *gin.Context) {
+	shard, _ := c.MustGet(consts.ContextKeyClusterShard).(*store.Shard)
+	helper.ResponseOK(c, shard.Nodes)
+}
+
+func (handler *NodeHandler) Create(c *gin.Context) {
+}
+
+func (handler *NodeHandler) Remove(c *gin.Context) {
+
+}

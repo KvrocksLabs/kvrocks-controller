@@ -17,15 +17,28 @@
  * under the License.
  *
  */
-package consts
+package engine
 
-const (
-	ContextKeyStore        = "_context_key_storage"
-	ContextKeyCluster      = "_context_key_cluster"
-	ContextKeyClusterShard = "_context_key_cluster_shard"
+import (
+	"context"
 )
 
-const (
-	HeaderIsRedirect     = "X-Is-Redirect"
-	HeaderDontDetectHost = "X-Dont-Detect-Host"
-)
+type Entry struct {
+	Key   string
+	Value []byte
+}
+
+type Engine interface {
+	ID() string
+	Leader() string
+	LeaderChange() <-chan bool
+	IsReady(ctx context.Context) bool
+
+	Get(ctx context.Context, key string) ([]byte, error)
+	Exists(ctx context.Context, key string) (bool, error)
+	Set(ctx context.Context, key string, value []byte) error
+	Delete(ctx context.Context, key string) error
+	List(ctx context.Context, prefix string) ([]Entry, error)
+
+	Close() error
+}
