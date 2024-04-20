@@ -102,7 +102,6 @@ func (c *Controller) leaderEventLoop() {
 			if !c.storage.IsLeader() {
 				continue
 			}
-			var err error
 			switch event.Type { // nolint
 			case store.EventCluster:
 				switch event.Command {
@@ -112,13 +111,6 @@ func (c *Controller) leaderEventLoop() {
 					c.removeCluster(event.Namespace, event.Cluster)
 				default:
 					// TODO: update cluster & remove namespace
-				}
-				if err != nil {
-					logger.Get().With(
-						zap.Error(err),
-						zap.String("namespace", event.Namespace),
-						zap.String("cluster", event.Cluster),
-					).Error("Failed to handle cluster event")
 				}
 			default:
 			}
