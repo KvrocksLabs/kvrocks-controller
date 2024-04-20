@@ -17,4 +17,57 @@
  * under the License.
  *
  */
+
 package store
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/apache/kvrocks-controller/consts"
+)
+
+func TestCluster_PromoteNewMaster(t *testing.T) {
+	shard := NewShard()
+	shard.SlotRanges = []SlotRange{{Start: 0, Stop: 1023}}
+
+	node0 := NewClusterMockNode()
+	node0.SetRole(RoleMaster)
+
+	node1 := NewClusterMockNode()
+	node1.SetRole(RoleSlave)
+	node1.Sequence = 200
+
+	node2 := NewClusterMockNode()
+	node2.SetRole(RoleSlave)
+	node2.Sequence = 100
+
+	node3 := NewClusterMockNode()
+	node3.SetRole(RoleSlave)
+	node3.Sequence = 300
+
+	shard.Nodes = []Node{node0}
+	cluster := &Cluster{
+		Shards: Shards{shard},
+	}
+
+	ctx := context.Background()
+	_, err := cluster.PromoteNewMaster(ctx, 0, "")
+	require.ErrorIs(t, err, consts.ErrEmptyNodeID)
+	_, err = cluster.PromoteNewMaster(ctx, -1, node0.ID())
+	require.ErrorIs(t, err, consts.ErrIndexOutOfRange)
+	_, err = cluster.PromoteNewMaster(ctx, 1, node0.ID())
+	require.ErrorIs(t, err, consts.ErrIndexOutOfRange)
+	_, err = cluster.PromoteNewMaster(ctx, 0, node0.ID())
+	require.ErrorIs(t, err, consts.ErrShardNoReplica)
+
+	shard.Nodes = append(shard.Nodes, node1, node2, node3)
+	_, err = cluster.PromoteNewMaster(ctx, 0, node1.ID())
+	require.ErrorIs(t, err, consts.ErrNodeIsNotMaster)
+
+	newMasterID, err := cluster.PromoteNewMaster(ctx, 0, node0.ID())
+	require.NoError(t, err)
+	require.Equal(t, node3.ID(), newMasterID)
+}

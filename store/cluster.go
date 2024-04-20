@@ -20,6 +20,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -61,6 +62,22 @@ func (cluster *Cluster) GetShard(shardIdx int) (*Shard, error) {
 		return nil, consts.ErrIndexOutOfRange
 	}
 	return cluster.Shards[shardIdx], nil
+}
+
+func (cluster *Cluster) PromoteNewMaster(ctx context.Context, shardIdx int, oldMasterNodeID string) (string, error) {
+	if oldMasterNodeID == "" {
+		return "", consts.ErrEmptyNodeID
+	}
+	shard, err := cluster.GetShard(shardIdx)
+	if err != nil {
+		return "", err
+	}
+	newMasterNodeID, err := shard.promoteNewMaster(ctx, oldMasterNodeID)
+	if err != nil {
+		return "", err
+	}
+	cluster.Shards[shardIdx] = shard
+	return newMasterNodeID, nil
 }
 
 // ParseCluster will parse the cluster string into cluster topology.

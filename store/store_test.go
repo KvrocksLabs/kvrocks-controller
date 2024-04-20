@@ -18,3 +18,78 @@
  *
  */
 package store
+
+import (
+	"context"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/apache/kvrocks-controller/consts"
+	"github.com/apache/kvrocks-controller/store/engine"
+)
+
+func TestClusterStore(t *testing.T) {
+	ctx := context.Background()
+	store := NewClusterStore(engine.NewMock())
+
+	t.Run("create/get/list/delete namespace", func(t *testing.T) {
+		namespaces := []string{"ns0", "ns1", "ns2"}
+		for _, ns := range namespaces {
+			err := store.CreateNamespace(ctx, ns)
+			require.NoError(t, err)
+			require.ErrorIs(t, store.CreateNamespace(ctx, ns), consts.ErrAlreadyExists)
+			exists, err := store.ExistsNamespace(ctx, ns)
+			require.NoError(t, err)
+			require.True(t, exists)
+		}
+
+		exists, err := store.ExistsNamespace(ctx, "not-exits-ns")
+		require.NoError(t, err)
+		require.False(t, exists)
+
+		gotNamespaces, err := store.ListNamespace(ctx)
+		require.NoError(t, err)
+		require.ElementsMatch(t, namespaces, gotNamespaces)
+
+		for _, ns := range namespaces {
+			err := store.RemoveNamespace(ctx, ns)
+			require.NoError(t, err)
+			exists, err := store.ExistsNamespace(ctx, ns)
+			require.NoError(t, err)
+			require.False(t, exists)
+		}
+	})
+
+	t.Run("create/get/list/delete cluster", func(t *testing.T) {
+		ns := "ns0"
+		cluster0 := &Cluster{Name: "cluster0", Version: 2, Shards: Shards{NewShard()}}
+		cluster1 := &Cluster{Name: "cluster1", Version: 3, Shards: Shards{NewShard()}}
+
+		require.NoError(t, store.CreateCluster(ctx, ns, cluster0))
+		require.ErrorIs(t, store.CreateCluster(ctx, ns, cluster0), consts.ErrAlreadyExists)
+		require.NoError(t, store.CreateCluster(ctx, ns, cluster1))
+
+		gotCluster, err := store.GetCluster(ctx, ns, "cluster0")
+		require.NoError(t, err)
+		require.Equal(t, cluster0.Name, gotCluster.Name)
+		require.Equal(t, cluster0.Version, gotCluster.Version)
+
+		gotClusters, err := store.ListCluster(ctx, ns)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{"cluster0", "cluster1"}, gotClusters)
+
+		cluster0.Version = 4
+		require.NoError(t, store.UpdateCluster(ctx, ns, cluster0))
+		gotCluster, err = store.GetCluster(ctx, ns, "cluster0")
+		require.NoError(t, err)
+		require.Equal(t, cluster0.Name, gotCluster.Name)
+		require.Equal(t, cluster0.Version, gotCluster.Version)
+
+		for _, name := range []string{"cluster0", "cluster1"} {
+			require.NoError(t, store.RemoveCluster(ctx, ns, name))
+			_, err = store.GetCluster(ctx, ns, name)
+			require.ErrorIs(t, err, consts.ErrNotFound)
+		}
+	})
+}

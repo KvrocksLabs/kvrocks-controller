@@ -23,20 +23,16 @@ import (
 	"fmt"
 )
 
-const namespacePrefix = "/kvrocks/metadata"
+const nsPrefix = "/kvrocks/metadata"
 
-func appendNamespacePrefix(ns string) string {
-	return namespacePrefix + "/" + ns
+func appendPrefix(ns string) string {
+	return nsPrefix + "/" + ns
 }
 
 func buildClusterPrefix(ns string) string {
-	return fmt.Sprintf("%s/%s/cluster", namespacePrefix, ns)
+	return fmt.Sprintf("%s/%s/cluster", nsPrefix, ns)
 }
 
 func buildClusterKey(ns, cluster string) string {
 	return fmt.Sprintf("%s/%s", buildClusterPrefix(ns), cluster)
-}
-
-func buildMigratingKeyPrefix(ns, cluster string) string {
-	return fmt.Sprintf("%s/%s/migrate/doing", buildClusterPrefix(ns), cluster)
 }

@@ -21,10 +21,11 @@ package middleware
 
 import (
 	"errors"
-	"github.com/apache/kvrocks-controller/server/helper"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/apache/kvrocks-controller/server/helper"
 
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/metrics"
@@ -79,7 +80,7 @@ func RedirectIfNotLeader(c *gin.Context) {
 }
 
 func RequiredNamespace(c *gin.Context) {
-	s := c.MustGet(consts.ContextKeyStore).(*store.ClusterStore)
+	s, _ := c.MustGet(consts.ContextKeyStore).(*store.ClusterStore)
 	ok, err := s.ExistsNamespace(c, c.Param("namespace"))
 	if err != nil {
 		helper.ResponseError(c, err)

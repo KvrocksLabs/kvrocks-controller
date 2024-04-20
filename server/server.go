@@ -27,6 +27,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/apache/kvrocks-controller/config"
 	"github.com/apache/kvrocks-controller/controller"
 	"github.com/apache/kvrocks-controller/logger"
@@ -34,7 +36,6 @@ import (
 	"github.com/apache/kvrocks-controller/store/engine"
 	"github.com/apache/kvrocks-controller/store/engine/etcd"
 	"github.com/apache/kvrocks-controller/store/engine/zookeeper"
-	"github.com/gin-gonic/gin"
 )
 
 type Server struct {
@@ -66,21 +67,18 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	if persist == nil {
 		return nil, fmt.Errorf("no found any store config")
 	}
-	storage, err := store.NewClusterStore(persist)
-	if err != nil {
-		return nil, err
-	}
-	if ok := storage.IsReady(); !ok {
-		return nil, fmt.Errorf("store is not ready")
+	clusterStore := store.NewClusterStore(persist)
+	if ok := clusterStore.IsReady(context.Background()); !ok {
+		return nil, fmt.Errorf("the cluster store is not ready")
 	}
 
-	ctrl, err := controller.New(storage, cfg)
+	ctrl, err := controller.New(clusterStore, cfg)
 	if err != nil {
 		return nil, err
 	}
 	gin.SetMode(gin.ReleaseMode)
 	return &Server{
-		store:      storage,
+		store:      clusterStore,
 		controller: ctrl,
 		config:     cfg,
 		engine:     gin.New(),

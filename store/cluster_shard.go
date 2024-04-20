@@ -20,8 +20,15 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"strings"
+
+	"go.uber.org/zap"
+
+	"github.com/apache/kvrocks-controller/logger"
+
+	"github.com/apache/kvrocks-controller/consts"
 )
 
 type Shard struct {
@@ -50,6 +57,49 @@ func NewShard() *Shard {
 		ImportSlot:    -1,
 		MigratingSlot: -1,
 	}
+}
+
+func (shard *Shard) promoteNewMaster(ctx context.Context, oldMasterNodeID string) (string, error) {
+	if len(shard.Nodes) <= 1 {
+		return "", consts.ErrShardNoReplica
+	}
+
+	oldMasterNodeIndex := -1
+	preferredNewMasterIndex := -1
+	var newestOffset uint64
+	for i, node := range shard.Nodes {
+		if node.ID() == oldMasterNodeID {
+			oldMasterNodeIndex = i
+			continue
+		}
+		clusterNodeInfo, err := node.GetClusterNodeInfo(ctx)
+		if err != nil {
+			logger.Get().With(
+				zap.Error(err),
+				zap.String("id", node.ID()),
+				zap.String("addr", node.Addr()),
+			).Warn("Skip the node due to failed to get cluster info")
+			continue
+		}
+		if clusterNodeInfo.Sequence >= newestOffset {
+			preferredNewMasterIndex = i
+			newestOffset = clusterNodeInfo.Sequence
+		}
+	}
+
+	if oldMasterNodeIndex == -1 {
+		return "", consts.ErrOldMasterNodeNotFound
+	}
+	if !shard.Nodes[oldMasterNodeIndex].IsMaster() {
+		return "", consts.ErrNodeIsNotMaster
+	}
+	if preferredNewMasterIndex == -1 {
+		return "", consts.ErrShardNoMatchPromoteNode
+	}
+	shard.Nodes[oldMasterNodeIndex].SetRole(RoleSlave)
+	shard.Nodes[preferredNewMasterIndex].SetRole(RoleMaster)
+	preferredNewMasterNode := shard.Nodes[preferredNewMasterIndex]
+	return preferredNewMasterNode.ID(), nil
 }
 
 func (shard *Shard) HasOverlap(slotRange *SlotRange) bool {

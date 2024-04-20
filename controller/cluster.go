@@ -87,7 +87,7 @@ func (c *Cluster) probeNode(ctx context.Context, node store.Node) (int64, error)
 	return clusterInfo.CurrentEpoch, nil
 }
 
-func (c *Cluster) increaseFailureCount(index int, node store.Node) int64 {
+func (c *Cluster) increaseFailureCount(shardIndex int, node store.Node) int64 {
 	addr := node.Addr()
 	c.failureMu.Lock()
 	if _, ok := c.failureCounts[addr]; !ok {
@@ -102,16 +102,22 @@ func (c *Cluster) increaseFailureCount(index int, node store.Node) int64 {
 		return count
 	}
 
-	//log := logger.Get().With(
-	//	zap.String("id", node.id),
-	//	zap.String("role", node.role),
-	//	zap.String("addr", node.addr))
+	log := logger.Get().With(
+		zap.String("id", node.ID()),
+		zap.Bool("is_master", node.IsMaster()),
+		zap.String("addr", node.Addr()))
 	if count%c.options.maxFailureCount == 0 {
-		//if err := c.storage.PromoteNewMaster(c.ctx, c.namespace, c.cluster, index, node.id); err != nil {
-		//	log.Error("Failed to promote the new master", zap.Error(err))
-		//} else {
-		//	log.Info("Promote the new master")
-		//}
+		cluster, err := c.storage.GetCluster(c.ctx, c.namespace, c.cluster)
+		if err != nil {
+			log.Error("Failed to get the cluster info", zap.Error(err))
+			return count
+		}
+		newMasterID, err := cluster.PromoteNewMaster(c.ctx, shardIndex, node.ID())
+		if err != nil {
+			log.Error("Failed to promote the new master", zap.Error(err))
+		} else {
+			log.With(zap.String("new_master_id", newMasterID)).Info("Promote the new master")
+		}
 	}
 	return count
 }

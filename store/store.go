@@ -23,14 +23,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"time"
 
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/store/engine"
 )
 
 type Store interface {
-	IsReady() bool
+	IsReady(ctx context.Context) bool
 
 	ListNamespace(ctx context.Context) ([]string, error)
 	CreateNamespace(ctx context.Context, ns string) error
@@ -49,27 +48,25 @@ var _ Store = (*ClusterStore)(nil)
 type ClusterStore struct {
 	e engine.Engine
 
-	eventNotifyCh chan Event
+	eventNotifyCh chan EventPayload
 	quitCh        chan struct{}
 }
 
-func NewClusterStore(e engine.Engine) (*ClusterStore, error) {
+func NewClusterStore(e engine.Engine) *ClusterStore {
 	return &ClusterStore{
 		e:             e,
-		eventNotifyCh: make(chan Event, 100),
+		eventNotifyCh: make(chan EventPayload, 100),
 		quitCh:        make(chan struct{}),
-	}, nil
+	}
 }
 
-func (s *ClusterStore) IsReady() bool {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+func (s *ClusterStore) IsReady(ctx context.Context) bool {
 	return s.e.IsReady(ctx)
 }
 
 // ListNamespace return the list of name of all namespaces
 func (s *ClusterStore) ListNamespace(ctx context.Context) ([]string, error) {
-	entries, err := s.e.List(ctx, namespacePrefix)
+	entries, err := s.e.List(ctx, nsPrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +79,7 @@ func (s *ClusterStore) ListNamespace(ctx context.Context) ([]string, error) {
 
 // ExistsNamespace return an indicator whether the specified namespace exists
 func (s *ClusterStore) ExistsNamespace(ctx context.Context, ns string) (bool, error) {
-	return s.e.Exists(ctx, appendNamespacePrefix(ns))
+	return s.e.Exists(ctx, appendPrefix(ns))
 }
 
 // CreateNamespace will create a namespace for clusters
@@ -90,10 +87,10 @@ func (s *ClusterStore) CreateNamespace(ctx context.Context, ns string) error {
 	if has, _ := s.ExistsNamespace(ctx, ns); has {
 		return consts.ErrAlreadyExists
 	}
-	if err := s.e.Set(ctx, appendNamespacePrefix(ns), []byte(ns)); err != nil {
+	if err := s.e.Set(ctx, appendPrefix(ns), []byte(ns)); err != nil {
 		return err
 	}
-	s.EmitEvent(Event{
+	s.EmitEvent(EventPayload{
 		Namespace: ns,
 		Type:      EventNamespace,
 		Command:   CommandCreate,
@@ -113,10 +110,10 @@ func (s *ClusterStore) RemoveNamespace(ctx context.Context, ns string) error {
 	if len(clusters) != 0 {
 		return errors.New("namespace wasn't empty, please remove clusters first")
 	}
-	if err := s.e.Delete(ctx, appendNamespacePrefix(ns)); err != nil {
+	if err := s.e.Delete(ctx, appendPrefix(ns)); err != nil {
 		return err
 	}
-	s.EmitEvent(Event{
+	s.EmitEvent(EventPayload{
 		Namespace: ns,
 		Type:      EventNamespace,
 		Command:   CommandRemove,
@@ -137,7 +134,7 @@ func (s *ClusterStore) ListCluster(ctx context.Context, ns string) ([]string, er
 	return keys, nil
 }
 
-func (s *ClusterStore) IsClusterExists(ctx context.Context, ns, cluster string) (bool, error) {
+func (s *ClusterStore) existsCluster(ctx context.Context, ns, cluster string) (bool, error) {
 	return s.e.Exists(ctx, buildClusterKey(ns, cluster))
 }
 
@@ -153,21 +150,18 @@ func (s *ClusterStore) GetCluster(ctx context.Context, ns, cluster string) (*Clu
 	return &clusterInfo, nil
 }
 
-func (s *ClusterStore) ClusterNodesCounts(ctx context.Context, ns, cluster string) (int, error) {
-	clusterInfo, err := s.GetCluster(ctx, ns, cluster)
-	if err != nil {
-		return -1, err
-	}
-	count := 0
-	for _, shard := range clusterInfo.Shards {
-		count += len(shard.Nodes)
-	}
-	return count, nil
-}
-
 // UpdateCluster update the Name to store under the specified namespace
 func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
-	return s.updateCluster(ctx, ns, clusterInfo)
+	if err := s.updateCluster(ctx, ns, clusterInfo); err != nil {
+		return err
+	}
+	s.EmitEvent(EventPayload{
+		Namespace: ns,
+		Cluster:   clusterInfo.Name,
+		Type:      EventCluster,
+		Command:   CommandUpdate,
+	})
+	return nil
 }
 
 // updateCluster is goroutine unsafe of UpdateCluster
@@ -184,13 +178,13 @@ func (s *ClusterStore) updateCluster(ctx context.Context, ns string, clusterInfo
 }
 
 func (s *ClusterStore) CreateCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
-	if exists, _ := s.IsClusterExists(ctx, ns, clusterInfo.Name); exists {
+	if exists, _ := s.existsCluster(ctx, ns, clusterInfo.Name); exists {
 		return consts.ErrAlreadyExists
 	}
 	if err := s.updateCluster(ctx, ns, clusterInfo); err != nil {
 		return err
 	}
-	s.EmitEvent(Event{
+	s.EmitEvent(EventPayload{
 		Namespace: ns,
 		Cluster:   clusterInfo.Name,
 		Type:      EventCluster,
@@ -200,13 +194,13 @@ func (s *ClusterStore) CreateCluster(ctx context.Context, ns string, clusterInfo
 }
 
 func (s *ClusterStore) RemoveCluster(ctx context.Context, ns, cluster string) error {
-	if exists, _ := s.IsClusterExists(ctx, ns, cluster); !exists {
+	if exists, _ := s.existsCluster(ctx, ns, cluster); !exists {
 		return consts.ErrNotFound
 	}
 	if err := s.e.Delete(ctx, buildClusterKey(ns, cluster)); err != nil {
 		return err
 	}
-	s.EmitEvent(Event{
+	s.EmitEvent(EventPayload{
 		Namespace: ns,
 		Cluster:   cluster,
 		Type:      EventCluster,
@@ -215,11 +209,11 @@ func (s *ClusterStore) RemoveCluster(ctx context.Context, ns, cluster string) er
 	return nil
 }
 
-func (s *ClusterStore) Notify() <-chan Event {
+func (s *ClusterStore) Notify() <-chan EventPayload {
 	return s.eventNotifyCh
 }
 
-func (s *ClusterStore) EmitEvent(event Event) {
+func (s *ClusterStore) EmitEvent(event EventPayload) {
 	s.eventNotifyCh <- event
 }
 

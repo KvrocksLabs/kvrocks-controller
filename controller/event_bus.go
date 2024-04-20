@@ -36,33 +36,33 @@ type EventBus struct {
 	storage  *store.ClusterStore
 	wg       sync.WaitGroup
 	shutdown chan struct{}
-	notifyCh chan store.Event
+	notifyCh chan store.EventPayload
 }
 
 func NewEventBus(s *store.ClusterStore) *EventBus {
 	syncer := &EventBus{
 		storage:  s,
 		shutdown: make(chan struct{}, 0),
-		notifyCh: make(chan store.Event, 8),
+		notifyCh: make(chan store.EventPayload, 8),
 	}
 	go syncer.loop()
 	return syncer
 }
 
-func (syncer *EventBus) Notify(event *store.Event) {
+func (syncer *EventBus) Notify(event *store.EventPayload) {
 	syncer.notifyCh <- *event
 }
 
-func (syncer *EventBus) handleEvent(event *store.Event) error {
+func (syncer *EventBus) handleEvent(event *store.EventPayload) error {
 	switch event.Type {
-	case store.EventCluster, store.EventShard, store.EventNode:
+	case store.EventCluster:
 		return syncer.handleClusterEvent(event)
 	default:
 		return nil
 	}
 }
 
-func (syncer *EventBus) handleClusterEvent(event *store.Event) error {
+func (syncer *EventBus) handleClusterEvent(event *store.EventPayload) error {
 	if event.Command != store.CommandRemove {
 		cluster, err := syncer.storage.GetCluster(context.Background(), event.Namespace, event.Cluster)
 		if err != nil {

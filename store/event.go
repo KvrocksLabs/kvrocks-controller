@@ -25,21 +25,17 @@ type Command int
 const (
 	EventNamespace EventType = iota + 1
 	EventCluster
-	EventShard
-	EventNode
 )
 
 const (
 	CommandCreate = iota + 1
+	CommandUpdate = iota + 1
 	CommandRemove
 )
 
-type Event struct {
+type EventPayload struct {
 	Namespace string
 	Cluster   string
-	Shard     int
-	NodeID    string
 	Type      EventType
 	Command   Command
-	Data      interface{}
 }

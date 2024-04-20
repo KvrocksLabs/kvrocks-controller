@@ -17,12 +17,35 @@
  * under the License.
  *
  */
-package util
 
-import (
-	"fmt"
-)
+package store
 
-func BuildClusterKey(ns, cluster string) string {
-	return fmt.Sprintf("%s/%s", ns, cluster)
+import "context"
+
+// ClusterMockNode is a mock implementation of the Node interface,
+// it is used for testing purposes.
+type ClusterMockNode struct {
+	*ClusterNode
+
+	Sequence uint64
+}
+
+var _ Node = (*ClusterMockNode)(nil)
+
+func NewClusterMockNode() *ClusterMockNode {
+	return &ClusterMockNode{
+		ClusterNode: NewClusterNode("", ""),
+	}
+}
+
+func (mock *ClusterMockNode) GetClusterNodeInfo(ctx context.Context) (*ClusterNodeInfo, error) {
+	return &ClusterNodeInfo{Sequence: mock.Sequence}, nil
+}
+
+func (mock *ClusterMockNode) GetClusterInfo(ctx context.Context) (*ClusterInfo, error) {
+	return &ClusterInfo{}, nil
+}
+
+func (mock *ClusterMockNode) SyncClusterInfo(ctx context.Context, cluster *Cluster) error {
+	return nil
 }

@@ -107,9 +107,9 @@ func (c *Controller) leaderEventLoop() {
 			case store.EventCluster:
 				switch event.Command {
 				case store.CommandCreate:
-					err = c.addCluster(event.Namespace, event.Cluster)
+					c.addCluster(event.Namespace, event.Cluster)
 				case store.CommandRemove:
-					err = c.removeCluster(event.Namespace, event.Cluster)
+					c.removeCluster(event.Namespace, event.Cluster)
 				default:
 					// TODO: update cluster & remove namespace
 				}
@@ -128,16 +128,15 @@ func (c *Controller) leaderEventLoop() {
 	}
 }
 
-func (c *Controller) addCluster(namespace, clusterName string) error {
+func (c *Controller) addCluster(namespace, clusterName string) {
 	key := namespace + "/" + clusterName
 	cluster := NewCluster(c.storage, namespace, clusterName)
 	c.mu.Lock()
 	c.clusters[key] = cluster
 	c.mu.Unlock()
-	return nil
 }
 
-func (c *Controller) removeCluster(namespace, clusterName string) error {
+func (c *Controller) removeCluster(namespace, clusterName string) {
 	key := namespace + "/" + clusterName
 	c.mu.Lock()
 	if cluster, ok := c.clusters[key]; ok {
@@ -145,7 +144,6 @@ func (c *Controller) removeCluster(namespace, clusterName string) error {
 	}
 	delete(c.clusters, key)
 	c.mu.Unlock()
-	return nil
 }
 
 func (c *Controller) Close() error {

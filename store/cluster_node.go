@@ -59,6 +59,7 @@ type Node interface {
 	SetRole(string)
 	SetPassword(string)
 
+	GetClusterNodeInfo(ctx context.Context) (*ClusterNodeInfo, error)
 	GetClusterInfo(ctx context.Context) (*ClusterInfo, error)
 	SyncClusterInfo(ctx context.Context, cluster *Cluster) error
 }
