@@ -113,6 +113,9 @@ func (c *Cluster) increaseFailureCount(shardIndex int, node store.Node) int64 {
 			return count
 		}
 		newMasterID, err := cluster.PromoteNewMaster(c.ctx, shardIndex, node.ID())
+		if err == nil {
+			err = c.storage.UpdateCluster(c.ctx, c.namespace, cluster)
+		}
 		if err != nil {
 			log.Error("Failed to promote the new master", zap.Error(err))
 		} else {

@@ -33,6 +33,20 @@ services:
      - "--cluster-enabled"
      - "yes"
 
+  kvrocks1:
+    image: "apache/kvrocks:nightly"
+    container_name: kvrocks1
+    ports:
+      - "7771:7771"
+    entrypoint:
+      - kvrocks
+      - "--bind"
+      - "0.0.0.0"
+      - "--port"
+      - "7771"
+      - "--cluster-enabled"
+      - "yes"
+
   etcd0:
     image: "quay.io/coreos/etcd:latest"
     container_name: etcd0

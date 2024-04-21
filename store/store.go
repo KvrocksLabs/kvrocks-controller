@@ -152,6 +152,7 @@ func (s *ClusterStore) GetCluster(ctx context.Context, ns, cluster string) (*Clu
 
 // UpdateCluster update the Name to store under the specified namespace
 func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
+	clusterInfo.Version++
 	if err := s.updateCluster(ctx, ns, clusterInfo); err != nil {
 		return err
 	}

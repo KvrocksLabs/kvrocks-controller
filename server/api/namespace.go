@@ -21,10 +21,14 @@ package api
 
 import (
 	"errors"
+
+	"github.com/apache/kvrocks-controller/consts"
+
 	"github.com/apache/kvrocks-controller/server/helper"
 
-	"github.com/apache/kvrocks-controller/store"
 	"github.com/gin-gonic/gin"
+
+	"github.com/apache/kvrocks-controller/store"
 )
 
 type NamespaceHandler struct {
@@ -47,7 +51,11 @@ func (handler *NamespaceHandler) Exists(c *gin.Context) {
 		helper.ResponseError(c, err)
 		return
 	}
-	helper.ResponseOK(c, gin.H{"exists": ok})
+	if !ok {
+		helper.ResponseError(c, consts.ErrNotFound)
+		return
+	}
+	helper.ResponseOK(c, nil)
 }
 
 func (handler *NamespaceHandler) Create(c *gin.Context) {
