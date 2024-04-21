@@ -29,13 +29,11 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/apache/kvrocks-controller/consts"
-
-	"github.com/apache/kvrocks-controller/server/middleware"
-
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/kvrocks-controller/consts"
+	"github.com/apache/kvrocks-controller/server/middleware"
 	"github.com/apache/kvrocks-controller/store"
 	"github.com/apache/kvrocks-controller/store/engine"
 )
@@ -73,6 +71,7 @@ func TestShardBasics(t *testing.T) {
 		middleware.RequiredCluster(ctx)
 		require.Equal(t, http.StatusOK, recorder.Code)
 		handler.Create(ctx)
+		require.Equal(t, expectedStatusCode, recorder.Code)
 	}
 
 	runRemove := func(t *testing.T, shardIndex, expectedStatusCode int) {
@@ -91,7 +90,7 @@ func TestShardBasics(t *testing.T) {
 	}
 
 	t.Run("create shard", func(t *testing.T) {
-		runCreate(t, http.StatusOK)
+		runCreate(t, http.StatusCreated)
 	})
 
 	t.Run("get shard", func(t *testing.T) {
