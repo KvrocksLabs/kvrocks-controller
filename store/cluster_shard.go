@@ -21,6 +21,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 
@@ -148,4 +149,27 @@ func (shard *Shard) ToSlotsString() (string, error) {
 		builder.WriteByte('\n')
 	}
 	return builder.String(), nil
+}
+
+// UnmarshalJSON unmarshal a Shard from JSON bytes,
+// it's required since Shard.Nodes is an interface slice.
+// So we need to take into a concrete type.
+func (shard *Shard) UnmarshalJSON(bytes []byte) error {
+	var data struct {
+		SlotRanges    []SlotRange    `json:"slot_ranges"`
+		ImportSlot    int            `json:"import_slot"`
+		MigratingSlot int            `json:"migrating_slot"`
+		Nodes         []*ClusterNode `json:"nodes"`
+	}
+	if err := json.Unmarshal(bytes, &data); err != nil {
+		return err
+	}
+	shard.SlotRanges = data.SlotRanges
+	shard.ImportSlot = data.ImportSlot
+	shard.MigratingSlot = data.MigratingSlot
+	shard.Nodes = make([]Node, len(data.Nodes))
+	for i, node := range data.Nodes {
+		shard.Nodes[i] = node
+	}
+	return nil
 }

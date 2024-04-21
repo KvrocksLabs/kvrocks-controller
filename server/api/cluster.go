@@ -69,12 +69,12 @@ func (req *CreateClusterRequest) validate() error {
 }
 
 type ClusterHandler struct {
-	storage store.Store
+	s store.Store
 }
 
 func (handler *ClusterHandler) List(c *gin.Context) {
 	namespace := c.Param("namespace")
-	clusters, err := handler.storage.ListCluster(c, namespace)
+	clusters, err := handler.s.ListCluster(c, namespace)
 	if err != nil {
 		helper.ResponseError(c, err)
 		return
@@ -101,10 +101,12 @@ func (handler *ClusterHandler) Create(c *gin.Context) {
 	}
 
 	replicas := req.Replicas
-	shards := make([]*store.Shard, len(req.Nodes)/replicas)
-	slotRanges := store.SpiltSlotRange(len(shards))
-	for i := range shards {
-		shards[i].Nodes = make([]store.Node, 0)
+	shardCount := len(req.Nodes) / replicas
+	shards := make([]*store.Shard, 0)
+	slotRanges := store.SpiltSlotRange(shardCount)
+	for i := 0; i < shardCount; i++ {
+		shard := store.NewShard()
+		shard.Nodes = make([]store.Node, 0)
 		for j := 0; j < replicas; j++ {
 			addr := req.Nodes[i*replicas+j]
 			role := store.RoleMaster
@@ -113,33 +115,32 @@ func (handler *ClusterHandler) Create(c *gin.Context) {
 			}
 			node := store.NewClusterNode(addr, req.Password)
 			node.SetRole(role)
-			shards[i].Nodes = append(shards[i].Nodes, node)
+			shard.Nodes = append(shard.Nodes, node)
 		}
-		shards[i].SlotRanges = append(shards[i].SlotRanges, slotRanges[i])
-		shards[i].MigratingSlot = -1
-		shards[i].ImportSlot = -1
+		shard.SlotRanges = append(shard.SlotRanges, slotRanges[i])
+		shard.MigratingSlot = -1
+		shard.ImportSlot = -1
+		shards = append(shards, shard)
 	}
-	err := handler.storage.CreateCluster(c, namespace, &store.Cluster{
-		Version: 1,
-		Name:    req.Name,
-		Shards:  shards,
-	})
+
+	cluster := &store.Cluster{Version: 1, Name: req.Name, Shards: shards}
+	err := handler.s.CreateCluster(c, namespace, cluster)
 	if err != nil {
 		helper.ResponseError(c, err)
 		return
 	}
-	helper.ResponseCreated(c, "created")
+	helper.ResponseCreated(c, gin.H{"cluster": cluster})
 }
 
 func (handler *ClusterHandler) Remove(c *gin.Context) {
 	namespace := c.Param("namespace")
 	cluster := c.Param("cluster")
-	err := handler.storage.RemoveCluster(c, namespace, cluster)
+	err := handler.s.RemoveCluster(c, namespace, cluster)
 	if err != nil {
 		helper.ResponseError(c, err)
 		return
 	}
-	helper.ResponseOK(c, "ok")
+	helper.ResponseNoContent(c)
 }
 
 func (handler *ClusterHandler) Import(c *gin.Context) {
@@ -164,17 +165,17 @@ func (handler *ClusterHandler) Import(c *gin.Context) {
 		helper.ResponseError(c, err)
 		return
 	}
-	clusterInfo, err := store.ParseCluster(clusterNodesStr)
+	cluster, err := store.ParseCluster(clusterNodesStr)
 	if err != nil {
 		helper.ResponseError(c, err)
 		return
 	}
-	clusterInfo.SetPassword(req.Password)
+	cluster.SetPassword(req.Password)
 
-	clusterInfo.Name = clusterName
-	if err := handler.storage.CreateCluster(c, namespace, clusterInfo); err != nil {
+	cluster.Name = clusterName
+	if err := handler.s.CreateCluster(c, namespace, cluster); err != nil {
 		helper.ResponseError(c, err)
 		return
 	}
-	helper.ResponseOK(c, "ok")
+	helper.ResponseOK(c, gin.H{"cluster": cluster})
 }

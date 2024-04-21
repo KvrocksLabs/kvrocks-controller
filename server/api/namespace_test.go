@@ -47,7 +47,7 @@ func GetTestContext(recorder *httptest.ResponseRecorder) *gin.Context {
 	return ctx
 }
 
-func TestNamespace(t *testing.T) {
+func TestNamespaceBasics(t *testing.T) {
 	handler := &NamespaceHandler{s: store.NewClusterStore(engine.NewMock())}
 
 	runCreate := func(t *testing.T, ns string, expectedStatusCode int) {
@@ -104,5 +104,4 @@ func TestNamespace(t *testing.T) {
 			runRemove(t, ns, http.StatusNotFound)
 		}
 	})
-
 }

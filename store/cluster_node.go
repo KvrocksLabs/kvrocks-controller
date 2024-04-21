@@ -21,6 +21,7 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -62,6 +63,9 @@ type Node interface {
 	GetClusterNodeInfo(ctx context.Context) (*ClusterNodeInfo, error)
 	GetClusterInfo(ctx context.Context) (*ClusterInfo, error)
 	SyncClusterInfo(ctx context.Context, cluster *Cluster) error
+
+	MarshalJSON() ([]byte, error)
+	UnmarshalJSON(data []byte) error
 }
 
 type ClusterNode struct {
@@ -239,4 +243,34 @@ func (n *ClusterNode) SyncClusterInfo(ctx context.Context, cluster *Cluster) err
 		return err
 	}
 	return redisCli.Do(ctx, "CLUSTERX", "SETNODES", clusterStr, cluster.Version).Err()
+}
+
+func (n *ClusterNode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(map[string]interface{}{
+		"id":         n.id,
+		"addr":       n.addr,
+		"role":       n.role,
+		"password":   n.password,
+		"created_at": n.createdAt,
+	})
+}
+
+func (n *ClusterNode) UnmarshalJSON(bytes []byte) error {
+	var data struct {
+		ID        string `json:"id"`
+		Addr      string `json:"addr"`
+		Role      string `json:"role"`
+		Password  string `json:"password"`
+		CreatedAt int64  `json:"created_at"`
+	}
+	if err := json.Unmarshal(bytes, &data); err != nil {
+		return err
+	}
+
+	n.id = data.ID
+	n.addr = data.Addr
+	n.role = data.Role
+	n.password = data.Password
+	n.createdAt = data.CreatedAt
+	return nil
 }

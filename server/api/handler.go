@@ -32,7 +32,7 @@ type Handler struct {
 func NewHandler(s *store.ClusterStore) *Handler {
 	return &Handler{
 		Namespace: &NamespaceHandler{s: s},
-		Cluster:   &ClusterHandler{storage: s},
+		Cluster:   &ClusterHandler{s: s},
 		Shard:     &ShardHandler{s: s},
 		Node:      &NodeHandler{s: s},
 	}
