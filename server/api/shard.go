@@ -23,11 +23,10 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/apache/kvrocks-controller/server/helper"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/apache/kvrocks-controller/consts"
+	"github.com/apache/kvrocks-controller/server/helper"
 	"github.com/apache/kvrocks-controller/store"
 )
 
@@ -57,12 +56,7 @@ type CreateShardRequest struct {
 }
 
 func (handler *ShardHandler) List(c *gin.Context) {
-	ns := c.Param("namespace")
-	cluster, err := handler.s.GetCluster(c, ns, c.Param("cluster"))
-	if err != nil {
-		helper.ResponseError(c, err)
-		return
-	}
+	cluster, _ := c.MustGet(consts.ContextKeyCluster).(*store.Cluster)
 	helper.ResponseOK(c, gin.H{"shards": cluster.Shards})
 }
 
@@ -73,8 +67,6 @@ func (handler *ShardHandler) Get(c *gin.Context) {
 
 func (handler *ShardHandler) Create(c *gin.Context) {
 	ns := c.Param("namespace")
-	clusterName := c.Param("cluster")
-
 	var req struct {
 		Nodes    []string `json:"nodes"`
 		Password string   `json:"password"`
@@ -87,7 +79,7 @@ func (handler *ShardHandler) Create(c *gin.Context) {
 		helper.ResponseBadRequest(c, errors.New("nodes should NOT be empty"))
 		return
 	}
-	nodes := make([]store.Node, len(req.Nodes))
+	nodes := make([]store.Node, 0, len(req.Nodes))
 	for i, addr := range req.Nodes {
 		node := store.NewClusterNode(addr, req.Password)
 		if i == 0 {
@@ -95,12 +87,9 @@ func (handler *ShardHandler) Create(c *gin.Context) {
 		} else {
 			node.SetRole(store.RoleSlave)
 		}
+		nodes = append(nodes, node)
 	}
-	cluster, err := handler.s.GetCluster(c, ns, clusterName)
-	if err != nil {
-		helper.ResponseError(c, err)
-		return
-	}
+	cluster, _ := c.MustGet(consts.ContextKeyCluster).(*store.Cluster)
 	newShard := store.NewShard()
 	newShard.Nodes = nodes
 	cluster.Shards = append(cluster.Shards, newShard)
@@ -108,25 +97,24 @@ func (handler *ShardHandler) Create(c *gin.Context) {
 		helper.ResponseError(c, err)
 		return
 	}
-	helper.ResponseCreated(c, "created")
+	helper.ResponseCreated(c, gin.H{"shard": newShard})
 }
 
 func (handler *ShardHandler) Remove(c *gin.Context) {
 	ns := c.Param("namespace")
-	clusterName := c.Param("cluster")
 	shardIdx, err := strconv.Atoi(c.Param("shard"))
 	if err != nil {
 		helper.ResponseBadRequest(c, err)
 		return
 	}
+	cluster, _ := c.MustGet(consts.ContextKeyCluster).(*store.Cluster)
 
-	cluster, err := handler.s.GetCluster(c, ns, clusterName)
-	if err != nil {
-		helper.ResponseError(c, err)
-		return
-	}
 	if shardIdx < 0 || shardIdx >= len(cluster.Shards) {
 		helper.ResponseBadRequest(c, consts.ErrIndexOutOfRange)
+		return
+	}
+	if cluster.Shards[shardIdx].IsServicing() {
+		helper.ResponseBadRequest(c, consts.ErrShardIsServicing)
 		return
 	}
 	cluster.Shards = append(cluster.Shards[:shardIdx], cluster.Shards[shardIdx+1:]...)
@@ -134,7 +122,7 @@ func (handler *ShardHandler) Remove(c *gin.Context) {
 		helper.ResponseError(c, err)
 		return
 	}
-	helper.ResponseOK(c, "ok")
+	helper.ResponseNoContent(c)
 }
 
 func (handler *ShardHandler) MigrateSlotData(c *gin.Context) {

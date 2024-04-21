@@ -49,3 +49,29 @@ func TestShard_Sort(t *testing.T) {
 	require.EqualValues(t, 101, shards[1].SlotRanges[0].Start)
 	require.EqualValues(t, 201, shards[2].SlotRanges[0].Start)
 }
+
+func TestShard_IsServicing(t *testing.T) {
+	shard := NewShard()
+	shard.ImportSlot = 0
+	require.True(t, shard.IsServicing())
+
+	shard.ImportSlot = -1
+	shard.MigratingSlot = 0
+	require.True(t, shard.IsServicing())
+
+	shard.ImportSlot = -1
+	shard.MigratingSlot = -1
+	require.False(t, shard.IsServicing())
+
+	shard.ImportSlot = 0
+	shard.MigratingSlot = 0
+	require.True(t, shard.IsServicing())
+
+	shard.ImportSlot = -1
+	shard.MigratingSlot = -1
+	shard.SlotRanges = []SlotRange{{Start: 0, Stop: 100}}
+	require.True(t, shard.IsServicing())
+
+	shard.SlotRanges = []SlotRange{{Start: -1, Stop: -1}}
+	require.False(t, shard.IsServicing())
+}

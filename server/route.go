@@ -20,11 +20,12 @@
 package server
 
 import (
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/server/api"
 	"github.com/apache/kvrocks-controller/server/middleware"
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func (srv *Server) initHandlers() {
@@ -59,13 +60,13 @@ func (srv *Server) initHandlers() {
 
 		shards := clusters.Group("/:cluster/shards")
 		{
-			shards.GET("", handler.Shard.List)
-			shards.POST("", handler.Shard.Create)
+			shards.GET("", middleware.RequiredCluster, handler.Shard.List)
+			shards.POST("", middleware.RequiredCluster, handler.Shard.Create)
 			shards.GET("/:shard", middleware.RequiredClusterShard, handler.Shard.Get)
-			shards.DELETE("/:shard", handler.Shard.Remove)
+			shards.DELETE("/:shard", middleware.RequiredCluster, handler.Shard.Remove)
 			shards.POST("/:shard/failover", middleware.RequiredClusterShard, handler.Shard.Failover)
-			shards.POST("/migration/slot_data", middleware.RequiredClusterShard, handler.Shard.MigrateSlotData)
-			shards.POST("/migration/slot_only", middleware.RequiredClusterShard, handler.Shard.MigrateSlotOnly)
+			shards.POST("/migration/slot_data", middleware.RequiredCluster, handler.Shard.MigrateSlotData)
+			shards.POST("/migration/slot_only", middleware.RequiredCluster, handler.Shard.MigrateSlotOnly)
 		}
 
 		nodes := shards.Group("/:shard/nodes")

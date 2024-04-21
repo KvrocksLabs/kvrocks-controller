@@ -60,6 +60,15 @@ func NewShard() *Shard {
 	}
 }
 
+func (shard *Shard) IsServicing() bool {
+	for _, slotRange := range shard.SlotRanges {
+		if slotRange.Start != -1 || slotRange.Stop != -1 {
+			return true
+		}
+	}
+	return shard.ImportSlot != -1 || shard.MigratingSlot != -1
+}
+
 func (shard *Shard) promoteNewMaster(ctx context.Context, oldMasterNodeID string) (string, error) {
 	if len(shard.Nodes) <= 1 {
 		return "", consts.ErrShardNoReplica

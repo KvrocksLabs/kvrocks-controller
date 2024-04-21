@@ -31,4 +31,5 @@ var (
 	ErrNodeIsNotMaster         = errors.New("the old node is not master")
 	ErrOldMasterNodeNotFound   = errors.New("old master node not found")
 	ErrShardNoReplica          = errors.New("no replica in shard")
+	ErrShardIsServicing        = errors.New("shard is servicing")
 )
