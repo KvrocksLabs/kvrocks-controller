@@ -49,7 +49,9 @@ func TestClusterBasics(t *testing.T) {
 		}
 		recorder := httptest.NewRecorder()
 		ctx := GetTestContext(recorder)
-		body, _ := json.Marshal(testCreateRequest)
+		body, err := json.Marshal(testCreateRequest)
+		require.NoError(t, err)
+
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 		ctx.Params = []gin.Param{{Key: "namespace", Value: ns}}
 
@@ -150,7 +152,9 @@ func TestClusterImport(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	testCtx := GetTestContext(recorder)
-	body, _ := json.Marshal(req)
+	body, err := json.Marshal(req)
+	require.NoError(t, err)
+
 	testCtx.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 	testCtx.Params = []gin.Param{{Key: "namespace", Value: ns}, {Key: "cluster", Value: "test-cluster-import"}}
 	handler.Import(testCtx)
