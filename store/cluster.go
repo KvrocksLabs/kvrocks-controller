@@ -36,28 +36,27 @@ type Cluster struct {
 	Shards  []*Shard `json:"shards"`
 }
 
-func NewCluster(name string, nodes []string, replica int) (*Cluster, error) {
+func NewCluster(name string, nodes []string, replicas int) (*Cluster, error) {
 	if len(nodes) == 0 {
 		return nil, errors.New("cluster nodes should NOT be empty")
 	}
-	if replica < 0 {
-		return nil, errors.New("replica should NOT be less than 0")
+	if replicas < 0 {
+		return nil, errors.New("replicas should NOT be less than 0")
 	}
-	if replica == 0 {
-		replica = 1
+	if replicas == 0 {
+		replicas = 1
 	}
-	if len(nodes)%replica != 0 {
-		return nil, errors.New("cluster nodes should be divisible by replica")
+	if len(nodes)%replicas != 0 {
+		return nil, errors.New("cluster nodes should be divisible by replicas")
 	}
-
-	shardCount := len(nodes) / replica
+	shardCount := len(nodes) / replicas
 	shards := make([]*Shard, 0)
 	slotRanges := SpiltSlotRange(shardCount)
 	for i := 0; i < shardCount; i++ {
 		shard := NewShard()
 		shard.Nodes = make([]Node, 0)
-		for j := 0; j < replica; j++ {
-			addr := nodes[i*replica+j]
+		for j := 0; j < replicas; j++ {
+			addr := nodes[i*replicas+j]
 			role := RoleMaster
 			if j != 0 {
 				role = RoleSlave
@@ -96,11 +95,25 @@ func (cluster *Cluster) ToSlotString() (string, error) {
 	return builder.String(), nil
 }
 
-func (cluster *Cluster) GetShard(shardIdx int) (*Shard, error) {
-	if shardIdx < 0 || shardIdx >= len(cluster.Shards) {
+func (cluster *Cluster) GetShard(shardIndex int) (*Shard, error) {
+	if shardIndex < 0 || shardIndex >= len(cluster.Shards) {
 		return nil, consts.ErrIndexOutOfRange
 	}
-	return cluster.Shards[shardIdx], nil
+	return cluster.Shards[shardIndex], nil
+}
+
+func (cluster *Cluster) AddNode(shardIndex int, addr, role, password string) error {
+	if shardIndex < 0 || shardIndex >= len(cluster.Shards) {
+		return consts.ErrIndexOutOfRange
+	}
+	return cluster.Shards[shardIndex].addNode(addr, role, password)
+}
+
+func (cluster *Cluster) RemoveNode(shardIndex int, nodeID string) error {
+	if shardIndex < 0 || shardIndex >= len(cluster.Shards) {
+		return consts.ErrIndexOutOfRange
+	}
+	return cluster.Shards[shardIndex].removeNode(nodeID)
 }
 
 func (cluster *Cluster) PromoteNewMaster(ctx context.Context,

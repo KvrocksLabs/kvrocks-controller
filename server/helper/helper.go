@@ -21,8 +21,9 @@ package helper
 
 import (
 	"errors"
-	"github.com/apache/kvrocks-controller/consts"
 	"net/http"
+
+	"github.com/apache/kvrocks-controller/consts"
 
 	"github.com/gin-gonic/gin"
 )
@@ -68,6 +69,8 @@ func ResponseError(c *gin.Context, err error) {
 		code = http.StatusBadRequest
 	} else if errors.Is(err, consts.ErrAlreadyExists) {
 		code = http.StatusConflict
+	} else if errors.Is(err, consts.ErrInvalidArgument) {
+		code = http.StatusBadRequest
 	}
 	c.JSON(code, Response{
 		Error: &Error{Message: err.Error()},

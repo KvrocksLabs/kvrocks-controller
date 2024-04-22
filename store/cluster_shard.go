@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"go.uber.org/zap"
@@ -67,6 +68,42 @@ func (shard *Shard) IsServicing() bool {
 		}
 	}
 	return shard.ImportSlot != -1 || shard.MigratingSlot != -1
+}
+
+func (shard *Shard) addNode(addr, role, password string) error {
+	if role != RoleMaster && role != RoleSlave {
+		return fmt.Errorf("%w: role", consts.ErrInvalidArgument)
+	}
+	for _, node := range shard.Nodes {
+		if node.Addr() == addr {
+			return consts.ErrAlreadyExists
+		}
+	}
+	if role == RoleMaster && len(shard.Nodes) > 0 {
+		return fmt.Errorf("master node %w", consts.ErrAlreadyExists)
+	}
+	node := NewClusterNode(addr, password)
+	node.SetRole(role)
+	shard.Nodes = append(shard.Nodes, node)
+	return nil
+}
+
+func (shard *Shard) removeNode(nodeID string) error {
+	isFound := false
+	for i, node := range shard.Nodes {
+		if node.ID() != nodeID {
+			continue
+		}
+		if node.IsMaster() {
+			return fmt.Errorf("cannot remove master node: %w", consts.ErrInvalidArgument)
+		}
+		shard.Nodes = append(shard.Nodes[:i], shard.Nodes[i+1:]...)
+		isFound = true
+	}
+	if !isFound {
+		return consts.ErrNotFound
+	}
+	return nil
 }
 
 func (shard *Shard) getNewMasterNodeIndex(ctx context.Context, preferredNodeID string) int {

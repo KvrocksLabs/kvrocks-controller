@@ -157,6 +157,10 @@ func TestClusterFailover(t *testing.T) {
 	ns := "test-ns"
 	clusterName := "test-cluster-failover"
 	handler := &ShardHandler{s: store.NewClusterStore(engine.NewMock())}
+	cluster, err := store.NewCluster(clusterName, []string{"127.0.0.1:7770", "127.0.0.1:7771"}, 2)
+	require.NoError(t, err)
+	node0, _ := cluster.Shards[0].Nodes[0].(*store.ClusterNode)
+	node1, _ := cluster.Shards[0].Nodes[1].(*store.ClusterNode)
 
 	runFailover := func(t *testing.T, shardIndex, expectedStatusCode int) {
 		recorder := httptest.NewRecorder()
@@ -173,45 +177,45 @@ func TestClusterFailover(t *testing.T) {
 		require.Equal(t, expectedStatusCode, recorder.Code)
 	}
 
-	// cluster import must be done on a real cluster
-	cluster, err := store.NewCluster(clusterName, []string{"127.0.0.1:7770", "127.0.0.1:7771"}, 2)
-	require.NoError(t, err)
-	node0, _ := cluster.Shards[0].Nodes[0].(*store.ClusterNode)
-	node1, _ := cluster.Shards[0].Nodes[1].(*store.ClusterNode)
-
-	ctx := context.Background()
-	masterCli := node0.GetClient()
-	replicaCli := node1.GetClient()
-	require.NoError(t, masterCli.ClusterResetHard(ctx).Err())
-	require.NoError(t, replicaCli.ClusterResetHard(ctx).Err())
-	defer func() {
+	t.Run("failover is good", func(t *testing.T) {
+		ctx := context.Background()
+		masterCli := node0.GetClient()
+		replicaCli := node1.GetClient()
 		require.NoError(t, masterCli.ClusterResetHard(ctx).Err())
 		require.NoError(t, replicaCli.ClusterResetHard(ctx).Err())
-	}()
+		defer func() {
+			require.NoError(t, masterCli.ClusterResetHard(ctx).Err())
+			require.NoError(t, replicaCli.ClusterResetHard(ctx).Err())
+		}()
 
-	require.NoError(t, handler.s.CreateCluster(ctx, ns, cluster))
-	runFailover(t, 0, http.StatusOK)
+		require.NoError(t, handler.s.CreateCluster(ctx, ns, cluster))
+		runFailover(t, 0, http.StatusOK)
+	})
 
-	gotCluster, err := handler.s.GetCluster(ctx, ns, clusterName)
-	require.NoError(t, err)
-	require.EqualValues(t, 2, gotCluster.Version)
-	require.Len(t, gotCluster.Shards, 1)
-	for _, node := range gotCluster.Shards[0].Nodes {
-		if node.ID() == node0.ID() {
-			// become slave now
-			require.False(t, node.IsMaster())
-		} else {
-			require.True(t, node.IsMaster())
+	t.Run("cluster topology is good", func(t *testing.T) {
+		ctx := context.Background()
+		gotCluster, err := handler.s.GetCluster(ctx, ns, clusterName)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, gotCluster.Version)
+		require.Len(t, gotCluster.Shards, 1)
+		for _, node := range gotCluster.Shards[0].Nodes {
+			if node.ID() == node0.ID() {
+				// become slave now
+				require.False(t, node.IsMaster())
+			} else {
+				require.True(t, node.IsMaster())
+			}
 		}
-	}
 
-	require.NoError(t, node0.SyncClusterInfo(ctx, gotCluster))
-	require.NoError(t, node1.SyncClusterInfo(ctx, gotCluster))
+		// sync cluster info to each node
+		require.NoError(t, node0.SyncClusterInfo(ctx, gotCluster))
+		require.NoError(t, node1.SyncClusterInfo(ctx, gotCluster))
 
-	clusterNodeInfo0, err := node0.GetClusterNodeInfo(ctx)
-	require.NoError(t, err)
-	require.EqualValues(t, "slave", clusterNodeInfo0.Role)
-	clusterNodeInfo1, err := node1.GetClusterNodeInfo(ctx)
-	require.NoError(t, err)
-	require.EqualValues(t, "master", clusterNodeInfo1.Role)
+		clusterNodeInfo0, err := node0.GetClusterNodeInfo(ctx)
+		require.NoError(t, err)
+		require.EqualValues(t, "slave", clusterNodeInfo0.Role)
+		clusterNodeInfo1, err := node1.GetClusterNodeInfo(ctx)
+		require.NoError(t, err)
+		require.EqualValues(t, "master", clusterNodeInfo1.Role)
+	})
 }

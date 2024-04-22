@@ -23,13 +23,12 @@ package consts
 import "errors"
 
 var (
-	ErrNotFound                = errors.New("not found")
-	ErrAlreadyExists           = errors.New("already exists")
-	ErrEmptyNodeID             = errors.New("empty node id")
-	ErrIndexOutOfRange         = errors.New("index out of range")
-	ErrShardNoMatchPromoteNode = errors.New("no match promote node in shard")
-	ErrNodeIsNotMaster         = errors.New("the old node is not master")
-	ErrOldMasterNodeNotFound   = errors.New("old master node not found")
-	ErrShardNoReplica          = errors.New("no replica in shard")
-	ErrShardIsServicing        = errors.New("shard is servicing")
+	ErrInvalidArgument       = errors.New("invalid argument")
+	ErrNotFound              = errors.New("not found")
+	ErrAlreadyExists         = errors.New("already exists")
+	ErrIndexOutOfRange       = errors.New("index out of range")
+	ErrNodeIsNotMaster       = errors.New("the old node is not master")
+	ErrOldMasterNodeNotFound = errors.New("old master node not found")
+	ErrShardNoReplica        = errors.New("no replica in shard")
+	ErrShardIsServicing      = errors.New("shard is servicing")
 )
