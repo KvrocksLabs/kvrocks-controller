@@ -36,6 +36,45 @@ type Cluster struct {
 	Shards  []*Shard `json:"shards"`
 }
 
+func NewCluster(name string, nodes []string, replica int) (*Cluster, error) {
+	if len(nodes) == 0 {
+		return nil, errors.New("cluster nodes should NOT be empty")
+	}
+	if replica < 0 {
+		return nil, errors.New("replica should NOT be less than 0")
+	}
+	if replica == 0 {
+		replica = 1
+	}
+	if len(nodes)%replica != 0 {
+		return nil, errors.New("cluster nodes should be divisible by replica")
+	}
+
+	shardCount := len(nodes) / replica
+	shards := make([]*Shard, 0)
+	slotRanges := SpiltSlotRange(shardCount)
+	for i := 0; i < shardCount; i++ {
+		shard := NewShard()
+		shard.Nodes = make([]Node, 0)
+		for j := 0; j < replica; j++ {
+			addr := nodes[i*replica+j]
+			role := RoleMaster
+			if j != 0 {
+				role = RoleSlave
+			}
+			node := NewClusterNode(addr, "")
+			node.SetRole(role)
+			shard.Nodes = append(shard.Nodes, node)
+		}
+		shard.SlotRanges = append(shard.SlotRanges, slotRanges[i])
+		shard.MigratingSlot = -1
+		shard.ImportSlot = -1
+		shards = append(shards, shard)
+	}
+
+	return &Cluster{Version: 1, Name: name, Shards: shards}, nil
+}
+
 // SetPassword will set the password for all nodes in the cluster.
 func (cluster *Cluster) SetPassword(password string) {
 	for i := 0; i < len(cluster.Shards); i++ {
@@ -64,15 +103,13 @@ func (cluster *Cluster) GetShard(shardIdx int) (*Shard, error) {
 	return cluster.Shards[shardIdx], nil
 }
 
-func (cluster *Cluster) PromoteNewMaster(ctx context.Context, shardIdx int, oldMasterNodeID string) (string, error) {
-	if oldMasterNodeID == "" {
-		return "", consts.ErrEmptyNodeID
-	}
+func (cluster *Cluster) PromoteNewMaster(ctx context.Context,
+	shardIdx int, masterNodeID, preferredNodeID string) (string, error) {
 	shard, err := cluster.GetShard(shardIdx)
 	if err != nil {
 		return "", err
 	}
-	newMasterNodeID, err := shard.promoteNewMaster(ctx, oldMasterNodeID)
+	newMasterNodeID, err := shard.promoteNewMaster(ctx, masterNodeID, preferredNodeID)
 	if err != nil {
 		return "", err
 	}

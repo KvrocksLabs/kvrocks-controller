@@ -151,34 +151,18 @@ func (handler *ShardHandler) MigrateSlotOnly(c *gin.Context) {
 }
 
 func (handler *ShardHandler) Failover(c *gin.Context) {
-	//ns := c.Param("namespace")
-	//cluster := c.Param("cluster")
-	//shard, err := strconv.Atoi(c.Param("shard"))
-	//if err != nil {
-	//	ResponseBadRequest(c, err)
-	//	return
-	//}
-	//
-	//nodes, err := handler.s.ListNodes(c, ns, cluster, shard)
-	//if err != nil {
-	//	return
-	//}
-	//if len(nodes) <= 1 {
-	//	ResponseBadRequest(c, errors.New("no node to be failover"))
-	//	return
-	//}
-	//var failoverNode *s.ClusterNode
-	//for i, node := range nodes {
-	//	if node.role == s.RoleMaster {
-	//		failoverNode = nodes[i]
-	//		break
-	//	}
-	//}
-	//if failoverNode == nil {
-	//	ResponseBadRequest(c, consts.ErrNotFound)
-	//	return
-	//}
-
-	// TODO: failover
-	helper.ResponseOK(c, "ok")
+	ns := c.Param("namespace")
+	cluster, _ := c.MustGet(consts.ContextKeyCluster).(*store.Cluster)
+	// We have checked this if statement in middleware.RequiredClusterShard
+	shardIndex, _ := strconv.Atoi(c.Param("shard"))
+	newMasterNodeID, err := cluster.PromoteNewMaster(c, shardIndex, "", "")
+	if err != nil {
+		helper.ResponseError(c, err)
+		return
+	}
+	if err := handler.s.UpdateCluster(c, ns, cluster); err != nil {
+		helper.ResponseError(c, err)
+		return
+	}
+	helper.ResponseOK(c, gin.H{"new_master_id": newMasterNodeID})
 }

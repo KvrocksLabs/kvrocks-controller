@@ -112,7 +112,7 @@ func (c *Cluster) increaseFailureCount(shardIndex int, node store.Node) int64 {
 			log.Error("Failed to get the cluster info", zap.Error(err))
 			return count
 		}
-		newMasterID, err := cluster.PromoteNewMaster(c.ctx, shardIndex, node.ID())
+		newMasterID, err := cluster.PromoteNewMaster(c.ctx, shardIndex, node.ID(), "")
 		if err == nil {
 			err = c.storage.UpdateCluster(c.ctx, c.namespace, cluster)
 		}

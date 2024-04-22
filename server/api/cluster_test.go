@@ -125,18 +125,11 @@ func TestClusterImport(t *testing.T) {
 	ns := "test-ns"
 	clusterName := "test-cluster-import"
 	handler := &ClusterHandler{s: store.NewClusterStore(engine.NewMock())}
+	// cluster import must be done on a real cluster
 	testNodeAddr := "127.0.0.1:7770"
-
 	clusterNode := store.NewClusterNode(testNodeAddr, "")
-	shard := store.NewShard()
-	shard.Nodes = []store.Node{clusterNode}
-	shard.SlotRanges = []store.SlotRange{{Start: 0, Stop: 16383}}
-
-	cluster := &store.Cluster{
-		Name:    clusterName,
-		Version: 1,
-		Shards:  []*store.Shard{shard},
-	}
+	cluster, err := store.NewCluster(clusterName, []string{testNodeAddr}, 1)
+	require.NoError(t, err)
 	ctx := context.Background()
 	require.NoError(t, clusterNode.GetClient().ClusterResetHard(ctx).Err())
 	require.NoError(t, clusterNode.SyncClusterInfo(ctx, cluster))

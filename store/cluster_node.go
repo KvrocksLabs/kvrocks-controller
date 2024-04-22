@@ -87,6 +87,7 @@ type ClusterInfo struct {
 
 type ClusterNodeInfo struct {
 	Sequence uint64 `json:"sequence"`
+	Role     string `json:"role"`
 }
 
 func NewClusterNode(addr, password string) *ClusterNode {
@@ -219,6 +220,8 @@ func (n *ClusterNode) GetClusterNodeInfo(ctx context.Context) (*ClusterNodeInfo,
 			if err != nil {
 				return nil, err
 			}
+		case "role":
+			clusterNodeInfo.Role = fields[1]
 		}
 	}
 	return clusterNodeInfo, nil

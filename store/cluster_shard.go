@@ -69,19 +69,10 @@ func (shard *Shard) IsServicing() bool {
 	return shard.ImportSlot != -1 || shard.MigratingSlot != -1
 }
 
-func (shard *Shard) promoteNewMaster(ctx context.Context, oldMasterNodeID string) (string, error) {
-	if len(shard.Nodes) <= 1 {
-		return "", consts.ErrShardNoReplica
-	}
-
-	oldMasterNodeIndex := -1
-	preferredNewMasterIndex := -1
+func (shard *Shard) getNewMasterNodeIndex(ctx context.Context, preferredNodeID string) int {
+	newMasterNodeIndex := -1
 	var newestOffset uint64
 	for i, node := range shard.Nodes {
-		if node.ID() == oldMasterNodeID {
-			oldMasterNodeIndex = i
-			continue
-		}
 		clusterNodeInfo, err := node.GetClusterNodeInfo(ctx)
 		if err != nil {
 			logger.Get().With(
@@ -91,24 +82,47 @@ func (shard *Shard) promoteNewMaster(ctx context.Context, oldMasterNodeID string
 			).Warn("Skip the node due to failed to get cluster info")
 			continue
 		}
+		// If the preferredNodeID is not empty, we will use it as the new master node.
+		if preferredNodeID != "" && node.ID() == preferredNodeID {
+			newMasterNodeIndex = i
+			break
+		}
 		if clusterNodeInfo.Sequence >= newestOffset {
-			preferredNewMasterIndex = i
+			newMasterNodeIndex = i
 			newestOffset = clusterNodeInfo.Sequence
 		}
 	}
+	return newMasterNodeIndex
+}
 
+// PromoteNewMaster promotes a new master node in the shard,
+// it will return the new master node ID.
+//
+// The masterNodeID is used to check if the node is the current master node if it's not empty.
+// The preferredNodeID is used to specify the preferred node to be promoted as the new master node,
+// it will choose the node with the highest sequence number if the preferredNodeID is empty.
+func (shard *Shard) promoteNewMaster(ctx context.Context, masterNodeID, preferredNodeID string) (string, error) {
+	if len(shard.Nodes) <= 1 {
+		return "", consts.ErrShardNoReplica
+	}
+
+	oldMasterNodeIndex := -1
+	for i, node := range shard.Nodes {
+		if node.IsMaster() {
+			oldMasterNodeIndex = i
+			break
+		}
+	}
 	if oldMasterNodeIndex == -1 {
 		return "", consts.ErrOldMasterNodeNotFound
 	}
-	if !shard.Nodes[oldMasterNodeIndex].IsMaster() {
+	if masterNodeID != "" && shard.Nodes[oldMasterNodeIndex].ID() != masterNodeID {
 		return "", consts.ErrNodeIsNotMaster
 	}
-	if preferredNewMasterIndex == -1 {
-		return "", consts.ErrShardNoMatchPromoteNode
-	}
+	newMasterNodeIndex := shard.getNewMasterNodeIndex(ctx, preferredNodeID)
 	shard.Nodes[oldMasterNodeIndex].SetRole(RoleSlave)
-	shard.Nodes[preferredNewMasterIndex].SetRole(RoleMaster)
-	preferredNewMasterNode := shard.Nodes[preferredNewMasterIndex]
+	shard.Nodes[newMasterNodeIndex].SetRole(RoleMaster)
+	preferredNewMasterNode := shard.Nodes[newMasterNodeIndex]
 	return preferredNewMasterNode.ID(), nil
 }
 
