@@ -26,6 +26,7 @@ import (
 	"os"
 
 	"github.com/apache/kvrocks-controller/storage/persistence/etcd"
+	"github.com/apache/kvrocks-controller/storage/persistence/redis"
 	"github.com/apache/kvrocks-controller/storage/persistence/zookeeper"
 	"github.com/go-playground/validator/v10"
 )
@@ -48,19 +49,28 @@ type ControllerConfig struct {
 
 const defaultPort = 9379
 
-type Config struct {
-	Addr        string            `yaml:"addr"`
-	StorageType string            `yaml:"storage_type"`
+type StorageConfig struct {
+	StorageType string            `yaml:"type"`
 	Etcd        *etcd.Config      `yaml:"etcd"`
 	Zookeeper   *zookeeper.Config `yaml:"zookeeper"`
-	Admin       AdminConfig       `yaml:"admin"`
-	Controller  *ControllerConfig `yaml:"controller"`
+	Redis       *redis.Config     `yaml:"redis"`
+}
+
+type Config struct {
+	Addr       string            `yaml:"addr"`
+	Storage    *StorageConfig    `yaml:"storage"`
+	Etcd       *etcd.Config      `yaml:"etcd"` // Deprecated, use Storage.Etcd.
+	Admin      AdminConfig       `yaml:"admin"`
+	Controller *ControllerConfig `yaml:"controller"`
 }
 
 func Default() *Config {
 	c := &Config{
-		Etcd: &etcd.Config{
-			Addrs: []string{"127.0.0.1:2379"},
+		Storage: &StorageConfig{
+			StorageType: "etcd",
+			Etcd: &etcd.Config{
+				Addrs: []string{"127.0.0.1:2379"},
+			},
 		},
 		Controller: &ControllerConfig{
 			FailOver: DefaultFailOverConfig(),

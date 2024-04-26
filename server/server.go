@@ -34,6 +34,7 @@ import (
 	"github.com/apache/kvrocks-controller/storage"
 	"github.com/apache/kvrocks-controller/storage/persistence"
 	"github.com/apache/kvrocks-controller/storage/persistence/etcd"
+	"github.com/apache/kvrocks-controller/storage/persistence/redis"
 	"github.com/apache/kvrocks-controller/storage/persistence/zookeeper"
 	"github.com/gin-gonic/gin"
 )
@@ -50,13 +51,21 @@ type Server struct {
 func NewServer(cfg *config.Config) (*Server, error) {
 	var persist persistence.Persistence
 	var err error
+
+	// backward compatibility
+	if cfg.Etcd != nil {
+		cfg.Storage.Etcd = cfg.Etcd
+	}
 	switch {
-	case strings.EqualFold(cfg.StorageType, "etcd"):
+	case strings.EqualFold(cfg.Storage.StorageType, "etcd"):
 		logger.Get().Info("Use Etcd as storage")
-		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
-	case strings.EqualFold(cfg.StorageType, "zookeeper"):
+		persist, err = etcd.New(cfg.Addr, cfg.Storage.Etcd)
+	case strings.EqualFold(cfg.Storage.StorageType, "zookeeper"):
 		logger.Get().Info("Use Zookeeper as storage")
-		persist, err = zookeeper.New(cfg.Addr, cfg.Zookeeper)
+		persist, err = zookeeper.New(cfg.Addr, cfg.Storage.Zookeeper)
+	case strings.EqualFold(cfg.Storage.StorageType, "redis"):
+		logger.Get().Info("Use Redis as storage")
+		persist, err = redis.New(cfg.Addr, cfg.Storage.Redis)
 	default:
 		logger.Get().Info("Use Etcd as default storage")
 		persist, err = etcd.New(cfg.Addr, cfg.Etcd)

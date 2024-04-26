@@ -35,6 +35,11 @@ services:
       - ETCD_INITIAL_CLUSTER_TOKEN=etcd-cluster
       - ETCD_INITIAL_CLUSTER=etcd0=http://etcd0:2380
       - ETCD_INITIAL_CLUSTER_STATE=new
+  redis0:
+    image: "redis:latest"
+    container_name: redis0
+    ports:
+      - "6379:6379"
   zookeeper0:
     image: "zookeeper:latest"
     container_name: zookeeper0
