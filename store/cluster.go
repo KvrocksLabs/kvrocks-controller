@@ -53,7 +53,7 @@ func NewCluster(name string, nodes []string, replicas int) (*Cluster, error) {
 	}
 	shardCount := len(nodes) / replicas
 	shards := make([]*Shard, 0)
-	slotRanges := SpiltSlotRange(shardCount)
+	slotRanges := CalculateSlotRanges(shardCount)
 	for i := 0; i < shardCount; i++ {
 		shard := NewShard()
 		shard.Nodes = make([]Node, 0)
@@ -186,9 +186,8 @@ func (cluster *Cluster) MigrateSlot(ctx context.Context, slot int, targetShardId
 		return consts.ErrShardIsSame
 	}
 	if slotOnly {
-		migrateSlot := SlotRange{Start: slot, Stop: slot}
-		cluster.Shards[sourceShardIdx].SlotRanges = RemoveSlotRanges(cluster.Shards[sourceShardIdx].SlotRanges, []SlotRange{migrateSlot})
-		cluster.Shards[targetShardIdx].SlotRanges = MergeSlotRanges(cluster.Shards[targetShardIdx].SlotRanges, []SlotRange{migrateSlot})
+		cluster.Shards[sourceShardIdx].SlotRanges = RemoveSlotFromSlotRanges(cluster.Shards[sourceShardIdx].SlotRanges, slot)
+		cluster.Shards[targetShardIdx].SlotRanges = AddSlotToSlotRanges(cluster.Shards[targetShardIdx].SlotRanges, slot)
 		return nil
 	}
 

@@ -39,6 +39,8 @@ type SlotRange struct {
 	Stop  int `json:"stop"`
 }
 
+type SlotRanges []SlotRange
+
 func NewSlotRange(start, stop int) (*SlotRange, error) {
 	if start > stop {
 		return nil, errors.New("start was larger than Shutdown")
@@ -122,69 +124,103 @@ func ParseSlotRange(s string) (*SlotRange, error) {
 	}, nil
 }
 
-func MergeSlotRanges(source []SlotRange, target []SlotRange) []SlotRange {
-	source = append(source, target...)
-	if len(source) == 1 {
-		return source
+func (SlotRanges *SlotRanges) Contains(slot int) bool {
+	for _, slotRange := range *SlotRanges {
+		if slotRange.Contains(slot) {
+			return true
+		}
 	}
+	return false
+}
+
+func AddSlotToSlotRanges(source SlotRanges, slot int) SlotRanges {
 	sort.Slice(source, func(i, j int) bool {
 		return source[i].Start < source[j].Start
 	})
-	merged := make([]SlotRange, 0)
-	start := source[0].Start
-	stop := source[0].Stop
-	for i := 1; i < len(source); i++ {
-		if stop+1 < source[i].Start {
-			merged = append(merged, SlotRange{Start: start, Stop: stop})
-			start = source[i].Start
-			stop = source[i].Stop
-		} else if stop < source[i].Stop {
-			stop = source[i].Stop
-		}
+	if len(source) == 0 {
+		return append(source, SlotRange{Start: slot, Stop: slot})
 	}
-	merged = append(merged, SlotRange{Start: start, Stop: stop})
-	return merged
-}
+	if source[0].Start-1 > slot {
+		return append([]SlotRange{{Start: slot, Stop: slot}}, source...)
+	}
+	if source[len(source)-1].Stop+1 < slot {
+		return append(source, SlotRange{Start: slot, Stop: slot})
+	}
 
-func RemoveSlotRanges(source []SlotRange, target []SlotRange) []SlotRange {
-	for delIdx := 0; delIdx < len(target); {
-		deleteSlotRange := target[delIdx]
-		sort.Slice(source, func(i, j int) bool {
-			return source[i].Start < source[j].Start
-		})
-		skip := true
-		for i, slotRange := range source {
-			if !slotRange.HasOverlap(&deleteSlotRange) {
-				continue
-			}
-			skip = false
-			source = append(source[0:i], source[i+1:]...)
-			if deleteSlotRange.Start == slotRange.Start && deleteSlotRange.Stop < slotRange.Stop {
-				source = append(source, SlotRange{Start: deleteSlotRange.Stop + 1, Stop: slotRange.Stop})
-			} else if deleteSlotRange.Stop == slotRange.Stop && deleteSlotRange.Start > slotRange.Start {
-				source = append(source, SlotRange{Start: slotRange.Start, Stop: deleteSlotRange.Start - 1})
-			} else if deleteSlotRange.Start < slotRange.Start && deleteSlotRange.Stop < slotRange.Stop {
-				source = append(source, SlotRange{Start: deleteSlotRange.Stop + 1, Stop: slotRange.Stop})
-			} else if deleteSlotRange.Start > slotRange.Start && deleteSlotRange.Stop > slotRange.Stop {
-				source = append(source, SlotRange{Start: slotRange.Start, Stop: deleteSlotRange.Start - 1})
-			} else if deleteSlotRange.Start > slotRange.Start && deleteSlotRange.Stop < slotRange.Stop {
-				source = append(source, SlotRange{Start: slotRange.Start, Stop: deleteSlotRange.Start - 1})
-				source = append(source, SlotRange{Start: deleteSlotRange.Stop + 1., Stop: slotRange.Stop})
-			}
-			break
+	// first run is to find the fittest slot range and create a new one if necessary
+	for i, slotRange := range source {
+		if slotRange.Contains(slot) {
+			return source
 		}
-		if skip {
-			delIdx++
+		// check next slot range, it won't be the last one since we have checked it before
+		if slotRange.Stop+1 < slot {
+			continue
+		}
+		if slotRange.Start == slot+1 {
+			source[i].Start = slot
+		} else if slotRange.Stop == slot-1 {
+			source[i].Stop = slot
+		} else if slotRange.Start > slot {
+			// no suitable slot range, create a new one before the current slot range
+			tmp := make(SlotRanges, len(source)+1)
+			copy(tmp, source[0:i])
+			tmp[i] = SlotRange{Start: slot, Stop: slot}
+			copy(tmp[i+1:], source[i:])
+			source = tmp
+		} else {
+			// should not reach here
+			panic("should not reach here")
+		}
+		break
+	}
+	// merge the slot ranges if necessary
+	for i := 0; i < len(source)-1; i++ {
+		if source[i].Stop+1 == source[i+1].Start {
+			source[i].Stop = source[i+1].Stop
+			if i+1 == len(source)-1 {
+				// remove the last slot range
+				source = source[:i+1]
+			} else {
+				source = append(source[:i+1], source[i+2:]...)
+			}
 		}
 	}
 	return source
 }
 
-func SpiltSlotRange(number int) []SlotRange {
+func RemoveSlotFromSlotRanges(source SlotRanges, slot int) SlotRanges {
+	sort.Slice(source, func(i, j int) bool {
+		return source[i].Start < source[j].Start
+	})
+	if !source.Contains(slot) {
+		return source
+	}
+	for i, slotRange := range source {
+		if slotRange.Contains(slot) {
+			if slotRange.Start == slot && slotRange.Stop == slot {
+				source = append(source[0:i], source[i+1:]...)
+			} else if slotRange.Start == slot {
+				source[i].Start = slot + 1
+			} else if slotRange.Stop == slot {
+				source[i].Stop = slot - 1
+			} else {
+				tmp := make(SlotRanges, len(source)+1)
+				copy(tmp, source[0:i])
+				tmp[i] = SlotRange{Start: slotRange.Start, Stop: slot - 1}
+				tmp[i+1] = SlotRange{Start: slot + 1, Stop: slotRange.Stop}
+				copy(tmp[i+2:], source[i+1:])
+				source = tmp
+			}
+		}
+	}
+	return source
+}
+
+func CalculateSlotRanges(n int) SlotRanges {
 	var slots []SlotRange
-	rangeSize := (MaxSlotID + 1) / number
-	for i := 0; i < number; i++ {
-		if i != number-1 {
+	rangeSize := (MaxSlotID + 1) / n
+	for i := 0; i < n; i++ {
+		if i != n-1 {
 			slots = append(slots, SlotRange{Start: i * rangeSize, Stop: (i+1)*rangeSize - 1})
 		} else {
 			slots = append(slots, SlotRange{Start: i * rangeSize, Stop: MaxSlotID})
