@@ -56,7 +56,7 @@ func TestController_Basics(t *testing.T) {
 		c.Close()
 	}()
 
-	c.WaitReady()
+	c.WaitForReady()
 
 	t.Run("get cluster", func(t *testing.T) {
 		cluster, err := c.getCluster(ns, "test-cluster-0")

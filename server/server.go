@@ -121,6 +121,7 @@ func (srv *Server) Start(ctx context.Context) error {
 	if err := srv.controller.Start(ctx); err != nil {
 		return err
 	}
+	srv.controller.WaitForReady()
 	srv.startAPIServer()
 	return nil
 }

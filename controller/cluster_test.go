@@ -120,7 +120,7 @@ func TestCluster_FailureCount(t *testing.T) {
 		clusterStore: s,
 		namespace:    ns,
 		clusterName:  clusterName,
-		options: ClusterOptions{
+		options: ClusterCheckOptions{
 			pingInterval:    time.Second,
 			maxFailureCount: 3,
 		},
@@ -173,7 +173,7 @@ func TestCluster_LoadAndProbe(t *testing.T) {
 	s := NewMockClusterStore()
 	require.NoError(t, s.CreateCluster(ctx, ns, cluster))
 
-	clusterProbe := NewClusterProbe(s, ns, clusterName)
+	clusterProbe := NewClusterChecker(s, ns, clusterName)
 	clusterProbe.WithPingInterval(100 * time.Millisecond)
 	clusterProbe.Start()
 	defer clusterProbe.Close()
@@ -223,7 +223,7 @@ func TestCluster_MigrateSlot(t *testing.T) {
 	s := NewMockClusterStore()
 	require.NoError(t, s.CreateCluster(ctx, ns, cluster))
 
-	clusterProbe := NewClusterProbe(s, ns, clusterName)
+	clusterProbe := NewClusterChecker(s, ns, clusterName)
 	clusterProbe.WithPingInterval(100 * time.Millisecond)
 	clusterProbe.Start()
 	defer clusterProbe.Close()

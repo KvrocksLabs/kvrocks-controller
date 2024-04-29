@@ -72,10 +72,12 @@ func (c *Controller) Start(ctx context.Context) error {
 
 	c.wg.Add(1)
 	go c.syncLoop(ctx)
+	c.wg.Add(1)
+	go c.leaderEventLoop()
 	return nil
 }
 
-func (c *Controller) WaitReady() {
+func (c *Controller) WaitForReady() {
 	<-c.readyCh
 }
 
@@ -122,7 +124,6 @@ func (c *Controller) syncLoop(ctx context.Context) {
 	defer c.wg.Done()
 
 	prevTermLeader := ""
-	go c.leaderEventLoop()
 	if c.clusterStore.IsLeader() {
 		c.becomeLeader(ctx, prevTermLeader)
 	}
@@ -148,6 +149,7 @@ func (c *Controller) syncLoop(ctx context.Context) {
 }
 
 func (c *Controller) leaderEventLoop() {
+	defer c.wg.Done()
 	for {
 		select {
 		case event := <-c.clusterStore.Notify():
@@ -176,7 +178,11 @@ func (c *Controller) buildClusterKey(namespace, clusterName string) string {
 
 func (c *Controller) addCluster(namespace, clusterName string) {
 	key := c.buildClusterKey(namespace, clusterName)
-	cluster := NewClusterProbe(c.clusterStore, namespace, clusterName).
+	if cluster, err := c.getCluster(namespace, clusterName); err == nil && cluster != nil {
+		return
+	}
+
+	cluster := NewClusterChecker(c.clusterStore, namespace, clusterName).
 		WithPingInterval(time.Duration(c.config.FailOver.PingIntervalSeconds) * time.Second).
 		WithMaxFailureCount(c.config.FailOver.MaxPingCount)
 	cluster.Start()
@@ -188,9 +194,10 @@ func (c *Controller) addCluster(namespace, clusterName string) {
 
 func (c *Controller) getCluster(namespace, clusterName string) (*ClusterChecker, error) {
 	key := c.buildClusterKey(namespace, clusterName)
+
 	c.mu.Lock()
+	defer c.mu.Unlock()
 	cluster, ok := c.clusters[key]
-	c.mu.Unlock()
 	if !ok {
 		return nil, consts.ErrNotFound
 	}
@@ -202,8 +209,8 @@ func (c *Controller) removeCluster(namespace, clusterName string) {
 	c.mu.Lock()
 	if cluster, ok := c.clusters[key]; ok {
 		cluster.Close()
+		delete(c.clusters, key)
 	}
-	delete(c.clusters, key)
 	c.mu.Unlock()
 }
 

@@ -92,11 +92,23 @@ func (m *Mock) Delete(ctx context.Context, key string) error {
 func (m *Mock) List(ctx context.Context, prefix string) ([]Entry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	exists := make(map[string]bool, 0)
 	var entries []Entry
 	for k, v := range m.values {
-		if k == prefix || (len(k) > len(prefix) && k[len(prefix)] == '/') {
+		if strings.HasPrefix(k, prefix) {
+			k = strings.Trim(strings.TrimPrefix(k, prefix), "/")
+			fields := strings.SplitN(k, "/", 2)
+			if len(fields) == 2 {
+				// only list the first level
+				k = fields[0]
+			}
+			if _, ok := exists[k]; ok {
+				continue
+			}
+			exists[k] = true
 			entries = append(entries, Entry{
-				Key:   strings.TrimPrefix(k, prefix+"/"),
+				Key:   k,
 				Value: []byte(v),
 			})
 		}

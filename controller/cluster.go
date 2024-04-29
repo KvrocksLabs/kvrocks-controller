@@ -36,13 +36,13 @@ var (
 	ErrRestoringBackUp       = errors.New("ERR LOADING kvrocks is restoring the db from backup")
 )
 
-type ClusterOptions struct {
+type ClusterCheckOptions struct {
 	pingInterval    time.Duration
 	maxFailureCount int64
 }
 
 type ClusterChecker struct {
-	options      ClusterOptions
+	options      ClusterCheckOptions
 	clusterStore store.Store
 	clusterMu    sync.Mutex
 	cluster      *store.Cluster
@@ -60,14 +60,14 @@ type ClusterChecker struct {
 	wg sync.WaitGroup
 }
 
-func NewClusterProbe(s store.Store, ns, cluster string) *ClusterChecker {
+func NewClusterChecker(s store.Store, ns, cluster string) *ClusterChecker {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &ClusterChecker{
 		namespace:   ns,
 		clusterName: cluster,
 
 		clusterStore: s,
-		options: ClusterOptions{
+		options: ClusterCheckOptions{
 			pingInterval:    time.Second * 3,
 			maxFailureCount: 5,
 		},
