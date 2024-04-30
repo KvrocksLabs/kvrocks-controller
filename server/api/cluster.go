@@ -17,10 +17,12 @@
  * under the License.
  *
  */
+
 package api
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -36,8 +38,8 @@ type MigrateSlotRequest struct {
 }
 
 type CreateClusterRequest struct {
-	Name     string   `json:"name"`
-	Nodes    []string `json:"nodes"`
+	Name     string   `json:"name" validate:"required"`
+	Nodes    []string `json:"nodes" validate:"required"`
 	Password string   `json:"password"`
 	Replicas int      `json:"replicas"`
 }
@@ -49,7 +51,7 @@ type ClusterHandler struct {
 func (handler *ClusterHandler) List(c *gin.Context) {
 	namespace := c.Param("namespace")
 	clusters, err := handler.s.ListCluster(c, namespace)
-	if err != nil {
+	if err != nil && !errors.Is(err, consts.ErrNotFound) {
 		helper.ResponseError(c, err)
 		return
 	}
@@ -69,13 +71,35 @@ func (handler *ClusterHandler) Create(c *gin.Context) {
 		return
 	}
 
+	clusterStore := handler.s
+	if err := clusterStore.CheckNewNodes(c, req.Nodes); err != nil {
+		helper.ResponseError(c, err)
+		return
+	}
+
 	cluster, err := store.NewCluster(req.Name, req.Nodes, req.Replicas)
 	if err != nil {
 		helper.ResponseBadRequest(c, err)
 		return
 	}
 	cluster.SetPassword(req.Password)
-	if err := handler.s.CreateCluster(c, namespace, cluster); err != nil {
+	checkClusterMode := strings.ToLower(c.GetHeader(consts.HeaderDontCheckClusterMode)) == "yes"
+	for _, node := range cluster.GetNodes() {
+		if !checkClusterMode {
+			break
+		}
+		version, err := node.CheckClusterMode(c)
+		if err != nil {
+			helper.ResponseError(c, err)
+			return
+		}
+		if version != -1 {
+			helper.ResponseBadRequest(c, errors.New("node is already in cluster mode"))
+			return
+		}
+	}
+
+	if err := clusterStore.CreateCluster(c, namespace, cluster); err != nil {
 		helper.ResponseError(c, err)
 		return
 	}
@@ -126,7 +150,7 @@ func (handler *ClusterHandler) Import(c *gin.Context) {
 	namespace := c.Param("namespace")
 	clusterName := c.Param("cluster")
 	var req struct {
-		Nodes    []string `json:"nodes"`
+		Nodes    []string `json:"nodes" validate:"required"`
 		Password string   `json:"password"`
 	}
 	if err := c.BindJSON(&req); err != nil {
@@ -150,6 +174,15 @@ func (handler *ClusterHandler) Import(c *gin.Context) {
 		return
 	}
 	cluster.SetPassword(req.Password)
+
+	newNodes := make([]string, 0)
+	for _, node := range cluster.GetNodes() {
+		newNodes = append(newNodes, node.Addr())
+	}
+	if err := handler.s.CheckNewNodes(c, newNodes); err != nil {
+		helper.ResponseError(c, err)
+		return
+	}
 
 	cluster.Name = clusterName
 	if err := handler.s.CreateCluster(c, namespace, cluster); err != nil {

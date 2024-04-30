@@ -20,5 +20,45 @@
 
 package main
 
+import (
+	"fmt"
+	"os"
+
+	"github.com/fatih/color"
+
+	"github.com/spf13/cobra"
+
+	"github.com/apache/kvrocks-controller/cmd/client/command"
+)
+
+var rootCommand = &cobra.Command{
+	Use:   "kvctl",
+	Short: "kvctl is a command line tool for the Kvrocks controller service",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(cmd.PersistentFlags().GetString("host"))
+		_, _ = color.New(color.Bold).Println("Run 'kvctl --help' for usage.")
+		os.Exit(0)
+	},
+}
+
 func main() {
+	if err := rootCommand.Execute(); err != nil {
+		color.Red("error: %v", err)
+		os.Exit(1)
+	}
+}
+
+func init() {
+	rootCommand.PersistentFlags().StringP("host", "H",
+		"http://127.0.0.1:9379", "The host of the Kvrocks controller service")
+
+	rootCommand.AddCommand(command.ListCommand)
+	rootCommand.AddCommand(command.CreateCommand)
+	rootCommand.AddCommand(command.GetCommand)
+	rootCommand.AddCommand(command.DeleteCommand)
+	rootCommand.AddCommand(command.ImportCommand)
+	rootCommand.AddCommand(command.MigrateCommand)
+
+	rootCommand.SilenceUsage = true
+	rootCommand.SilenceErrors = true
 }

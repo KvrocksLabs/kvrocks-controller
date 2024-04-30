@@ -23,6 +23,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/apache/kvrocks-controller/server/helper"
+
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/server/api"
 	"github.com/apache/kvrocks-controller/server/middleware"
@@ -38,6 +40,10 @@ func (srv *Server) initHandlers() {
 
 	engine.Any("/debug/pprof/*profile", PProf)
 	engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	engine.NoRoute(func(c *gin.Context) {
+		helper.ResponseError(c, consts.ErrNotFound)
+		c.Abort()
+	})
 
 	apiV1 := engine.Group("/api/v1/")
 	{
@@ -53,9 +59,9 @@ func (srv *Server) initHandlers() {
 		{
 			clusters.GET("", middleware.RequiredNamespace, handler.Cluster.List)
 			clusters.POST("", middleware.RequiredNamespace, handler.Cluster.Create)
+			clusters.POST("/:cluster/import", middleware.RequiredNamespace, handler.Cluster.Import)
 			clusters.GET("/:cluster", middleware.RequiredCluster, handler.Cluster.Get)
-			clusters.POST("/:cluster/import", handler.Cluster.Import)
-			clusters.DELETE("/:cluster", handler.Cluster.Remove)
+			clusters.DELETE("/:cluster", middleware.RequiredCluster, handler.Cluster.Remove)
 			clusters.POST("/:cluster/migrate", middleware.RequiredCluster, handler.Cluster.MigrateSlot)
 		}
 

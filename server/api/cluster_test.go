@@ -52,6 +52,7 @@ func TestClusterBasics(t *testing.T) {
 		body, err := json.Marshal(testCreateRequest)
 		require.NoError(t, err)
 
+		ctx.Header(consts.HeaderDontCheckClusterMode, "yes")
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 		ctx.Params = []gin.Param{{Key: "namespace", Value: ns}}
 

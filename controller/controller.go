@@ -126,6 +126,7 @@ func (c *Controller) syncLoop(ctx context.Context) {
 	prevTermLeader := ""
 	if c.clusterStore.IsLeader() {
 		c.becomeLeader(ctx, prevTermLeader)
+		prevTermLeader = c.clusterStore.ID()
 	}
 
 	c.readyCh <- struct{}{}
@@ -133,8 +134,10 @@ func (c *Controller) syncLoop(ctx context.Context) {
 		select {
 		case <-c.clusterStore.LeaderChange():
 			if c.clusterStore.IsLeader() {
-				c.becomeLeader(ctx, prevTermLeader)
-				prevTermLeader = c.clusterStore.ID()
+				if prevTermLeader != c.clusterStore.ID() {
+					c.becomeLeader(ctx, prevTermLeader)
+					prevTermLeader = c.clusterStore.ID()
+				}
 			} else {
 				if prevTermLeader != c.clusterStore.ID() {
 					continue

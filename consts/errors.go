@@ -25,6 +25,7 @@ import "errors"
 var (
 	ErrInvalidArgument         = errors.New("invalid argument")
 	ErrNotFound                = errors.New("not found")
+	ErrForbidden               = errors.New("forbidden")
 	ErrAlreadyExists           = errors.New("already exists")
 	ErrIndexOutOfRange         = errors.New("index out of range")
 	ErrShardIsSame             = errors.New("source and target shard is same")
@@ -36,6 +37,4 @@ var (
 	ErrShardIsServicing        = errors.New("shard is servicing")
 	ErrShardSlotIsMigrating    = errors.New("shard slot is migrating")
 	ErrShardNoMatchNewMaster   = errors.New("no match new master in shard")
-	ErrMismatchMigrateSlot     = errors.New("mismatch migrate slot")
-	ErrMigrateSlotFailed       = errors.New("migrate slot failed")
 )

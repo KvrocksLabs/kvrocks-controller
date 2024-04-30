@@ -17,6 +17,7 @@
  * under the License.
  *
  */
+
 package api
 
 import (
@@ -43,12 +44,15 @@ func (handler *NodeHandler) Create(c *gin.Context) {
 	cluster, _ := c.MustGet(consts.ContextKeyCluster).(*store.Cluster)
 	var req struct {
 		Addr     string `json:"addr" binding:"required"`
-		Role     string `json:"role" binding:"required"`
+		Role     string `json:"role"`
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.ResponseBadRequest(c, err)
 		return
+	}
+	if req.Role == "" {
+		req.Role = store.RoleSlave
 	}
 	shardIndex, _ := strconv.Atoi(c.Param("shard"))
 	err := cluster.AddNode(shardIndex, req.Addr, req.Role, req.Password)

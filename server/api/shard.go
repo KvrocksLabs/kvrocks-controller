@@ -56,7 +56,7 @@ func (handler *ShardHandler) Get(c *gin.Context) {
 func (handler *ShardHandler) Create(c *gin.Context) {
 	ns := c.Param("namespace")
 	var req struct {
-		Nodes    []string `json:"nodes"`
+		Nodes    []string `json:"nodes" validate:"required"`
 		Password string   `json:"password"`
 	}
 	if err := c.BindJSON(&req); err != nil {

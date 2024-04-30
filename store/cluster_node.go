@@ -64,6 +64,7 @@ type Node interface {
 	GetClusterNodeInfo(ctx context.Context) (*ClusterNodeInfo, error)
 	GetClusterInfo(ctx context.Context) (*ClusterInfo, error)
 	SyncClusterInfo(ctx context.Context, cluster *Cluster) error
+	CheckClusterMode(ctx context.Context) (int64, error)
 	MigrateSlot(ctx context.Context, slot int, NodeID string) error
 
 	MarshalJSON() ([]byte, error)
@@ -167,7 +168,7 @@ func (n *ClusterNode) CheckClusterMode(ctx context.Context) (int64, error) {
 		if strings.Contains(err.Error(), "cluster is not initialized") {
 			return -1, nil
 		}
-		return -1, fmt.Errorf("error while checking node(%s) cluster mode: %w", n.addr, err)
+		return -1, fmt.Errorf("error while checking node cluster mode: %w", err)
 	}
 	return clusterInfo.CurrentEpoch, nil
 }

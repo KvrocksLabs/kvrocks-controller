@@ -143,6 +143,14 @@ func (cluster *Cluster) SyncToNodes(ctx context.Context) error {
 	return nil
 }
 
+func (cluster *Cluster) GetNodes() []Node {
+	nodes := make([]Node, 0)
+	for i := 0; i < len(cluster.Shards); i++ {
+		nodes = append(nodes, cluster.Shards[i].Nodes...)
+	}
+	return nodes
+}
+
 func (cluster *Cluster) Reset(ctx context.Context) error {
 	for i := 0; i < len(cluster.Shards); i++ {
 		for _, node := range cluster.Shards[i].Nodes {

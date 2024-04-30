@@ -17,6 +17,7 @@
  * under the License.
  *
  */
+
 package api
 
 import (
@@ -60,7 +61,7 @@ func (handler *NamespaceHandler) Exists(c *gin.Context) {
 
 func (handler *NamespaceHandler) Create(c *gin.Context) {
 	var request struct {
-		Namespace string `json:"namespace"`
+		Namespace string `json:"namespace" validate:"required"`
 	}
 	if err := c.BindJSON(&request); err != nil {
 		helper.ResponseBadRequest(c, err)

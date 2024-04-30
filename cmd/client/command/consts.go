@@ -17,16 +17,12 @@
  * under the License.
  *
  */
-package consts
+
+package command
 
 const (
-	ContextKeyStore        = "_context_key_storage"
-	ContextKeyCluster      = "_context_key_cluster"
-	ContextKeyClusterShard = "_context_key_cluster_shard"
-	ContextKeyHost         = "_context_key_host"
-)
-
-const (
-	HeaderIsRedirect           = "X-Is-Redirect"
-	HeaderDontCheckClusterMode = "X-Dont-Check-Cluster-Mode"
+	ResourceNamespace = "namespace"
+	ResourceCluster   = "cluster"
+	ResourceShard     = "shard"
+	ResourceNode      = "node"
 )

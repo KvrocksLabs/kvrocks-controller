@@ -22,7 +22,7 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/store/engine"
@@ -42,6 +42,8 @@ type Store interface {
 	CreateCluster(ctx context.Context, ns string, cluster *Cluster) error
 	UpdateCluster(ctx context.Context, ns string, cluster *Cluster) error
 	SetCluster(ctx context.Context, ns string, clusterInfo *Cluster) error
+
+	CheckNewNodes(ctx context.Context, nodes []string) error
 }
 
 var _ Store = (*ClusterStore)(nil)
@@ -109,7 +111,7 @@ func (s *ClusterStore) RemoveNamespace(ctx context.Context, ns string) error {
 		return err
 	}
 	if len(clusters) != 0 {
-		return errors.New("namespace wasn't empty, please remove clusters first")
+		return fmt.Errorf("%w: please delete clusters first", consts.ErrForbidden)
 	}
 	if err := s.e.Delete(ctx, appendPrefix(ns)); err != nil {
 		return err
@@ -142,11 +144,11 @@ func (s *ClusterStore) existsCluster(ctx context.Context, ns, cluster string) (b
 func (s *ClusterStore) GetCluster(ctx context.Context, ns, cluster string) (*Cluster, error) {
 	value, err := s.e.Get(ctx, buildClusterKey(ns, cluster))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cluster: %w", err)
 	}
 	var clusterInfo Cluster
 	if err = json.Unmarshal(value, &clusterInfo); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cluster: %w", err)
 	}
 	return &clusterInfo, nil
 }
@@ -155,7 +157,7 @@ func (s *ClusterStore) GetCluster(ctx context.Context, ns, cluster string) (*Clu
 func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
 	clusterInfo.Version.Inc()
 	if err := s.SetCluster(ctx, ns, clusterInfo); err != nil {
-		return err
+		return fmt.Errorf("cluster: %w", err)
 	}
 	s.EmitEvent(EventPayload{
 		Namespace: ns,
@@ -168,18 +170,18 @@ func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo
 
 func (s *ClusterStore) SetCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
 	if len(clusterInfo.Shards) == 0 {
-		return errors.New("required at least one shard")
+		return fmt.Errorf("%w: required at least one shard", consts.ErrInvalidArgument)
 	}
 	value, err := json.Marshal(clusterInfo)
 	if err != nil {
-		return err
+		return fmt.Errorf("cluster: %w", err)
 	}
 	return s.e.Set(ctx, buildClusterKey(ns, clusterInfo.Name), value)
 }
 
 func (s *ClusterStore) CreateCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
 	if exists, _ := s.existsCluster(ctx, ns, clusterInfo.Name); exists {
-		return consts.ErrAlreadyExists
+		return fmt.Errorf("cluster: %w", consts.ErrAlreadyExists)
 	}
 	if err := s.SetCluster(ctx, ns, clusterInfo); err != nil {
 		return err
@@ -206,6 +208,40 @@ func (s *ClusterStore) RemoveCluster(ctx context.Context, ns, cluster string) er
 		Type:      EventCluster,
 		Command:   CommandRemove,
 	})
+	return nil
+}
+
+func (s *ClusterStore) CheckNewNodes(ctx context.Context, nodes []string) error {
+	newNodes := make(map[string]bool, 0)
+	for _, node := range nodes {
+		newNodes[node] = true
+	}
+
+	namespaces, err := s.ListNamespace(ctx)
+	if err != nil {
+		return err
+	}
+	existingNodes := make([]string, 0)
+	for _, ns := range namespaces {
+		clusters, err := s.ListCluster(ctx, ns)
+		if err != nil {
+			return err
+		}
+		for _, cluster := range clusters {
+			c, err := s.GetCluster(ctx, ns, cluster)
+			if err != nil {
+				return err
+			}
+			for _, existingNode := range c.GetNodes() {
+				if _, ok := newNodes[existingNode.Addr()]; ok {
+					existingNodes = append(existingNodes, existingNode.Addr())
+				}
+			}
+		}
+	}
+	if len(existingNodes) > 0 {
+		return fmt.Errorf("node: %w: %v", consts.ErrAlreadyExists, existingNodes)
+	}
 	return nil
 }
 

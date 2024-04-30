@@ -69,6 +69,8 @@ func ResponseError(c *gin.Context, err error) {
 		code = http.StatusBadRequest
 	} else if errors.Is(err, consts.ErrAlreadyExists) {
 		code = http.StatusConflict
+	} else if errors.Is(err, consts.ErrForbidden) {
+		code = http.StatusForbidden
 	} else if errors.Is(err, consts.ErrInvalidArgument) {
 		code = http.StatusBadRequest
 	}

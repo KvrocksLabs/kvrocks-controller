@@ -25,14 +25,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/apache/kvrocks-controller/server/helper"
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/metrics"
+	"github.com/apache/kvrocks-controller/server/helper"
 	"github.com/apache/kvrocks-controller/store"
-
-	"github.com/gin-gonic/gin"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 func CollectMetrics(c *gin.Context) {
@@ -88,9 +87,10 @@ func RequiredNamespace(c *gin.Context) {
 	}
 	if !ok {
 		helper.ResponseBadRequest(c, errors.New("namespace not found"))
-		return
+		c.Abort()
+	} else {
+		c.Next()
 	}
-	c.Next()
 }
 
 func RequiredCluster(c *gin.Context) {

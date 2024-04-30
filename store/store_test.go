@@ -94,4 +94,15 @@ func TestClusterStore(t *testing.T) {
 			require.ErrorIs(t, err, consts.ErrNotFound)
 		}
 	})
+
+	t.Run("check nodes", func(t *testing.T) {
+		testCluster, err := NewCluster("test-cluster-another",
+			[]string{"127.0.0.1:1111", "127.0.0.1:2222", "127.0.0.1:3333"}, 1)
+		require.NoError(t, err)
+
+		require.NoError(t, store.CreateCluster(ctx, "test-ns", testCluster))
+		require.NoError(t, store.CheckNewNodes(ctx, []string{"127.0.0.1:4444", "127.0.0.1:5555"}))
+		require.NotNil(t, store.CheckNewNodes(ctx, []string{"127.0.0.1:3333", "127.0.0.1:4444"}))
+		require.NotNil(t, store.CheckNewNodes(ctx, []string{"127.0.0.1:2222", "127.0.0.1:3333"}))
+	})
 }
