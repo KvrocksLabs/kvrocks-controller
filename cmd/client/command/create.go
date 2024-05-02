@@ -92,22 +92,22 @@ func createPreRun(_ *cobra.Command, args []string) error {
 		return errors.New("missing resource type, please specify one of [namespace, cluster, shard, node]")
 	}
 	resource := strings.ToLower(args[0])
-	if resource == "namespace" {
+	if resource == ResourceNamespace {
 		return nil
 	}
 	if createOptions.namespace == "" {
 		return errors.New("missing namespace, please specify the namespace via -n or --namespace option")
 	}
-	if resource != "node" && createOptions.nodes == nil {
+	if resource != ResourceNode && createOptions.nodes == nil {
 		return errors.New("missing nodes, please specify the nodes via --nodes option")
 	}
-	if resource == "cluster" {
+	if resource == ResourceCluster {
 		return nil
 	}
 	if createOptions.cluster == "" {
 		return errors.New("missing cluster, please specify the cluster via -c or --cluster option")
 	}
-	if resource == "shard" {
+	if resource == ResourceShard {
 		return nil
 	}
 	if createOptions.shard == -1 {

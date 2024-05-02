@@ -91,19 +91,19 @@ func deletePreRun(_ *cobra.Command, args []string) error {
 	}
 
 	resource := strings.ToLower(args[0])
-	if resource == "namespace" {
+	if resource == ResourceNamespace {
 		return nil
 	}
 	if deleteOptions.namespace == "" {
 		return fmt.Errorf("missing namespace, please specify the namespace via -n or --namespace option")
 	}
-	if resource == "cluster" {
+	if resource == ResourceCluster {
 		return nil
 	}
 	if deleteOptions.cluster == "" {
 		return fmt.Errorf("missing cluster, please specify the cluster via -c or --cluster option")
 	}
-	if resource == "shard" {
+	if resource == ResourceShard {
 		return nil
 	}
 	if deleteOptions.shard == -1 {

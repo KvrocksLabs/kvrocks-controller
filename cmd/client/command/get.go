@@ -32,7 +32,6 @@ import (
 type GetOptions struct {
 	namespace string
 	cluster   string
-	shard     int
 }
 
 var getOptions GetOptions
