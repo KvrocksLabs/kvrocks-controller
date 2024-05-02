@@ -17,22 +17,21 @@
  * under the License.
  *
  */
-package config
+
+package helper
 
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestDefaultControllerConfigSet(t *testing.T) {
-	cfg := Default()
-	expectedControllerConfig := &ControllerConfig{
-		FailOver: &FailOverConfig{
-			PingIntervalSeconds: 3,
-			MaxPingCount:        5,
-		},
-	}
+func TestGenerateSessionID(t *testing.T) {
+	testAddr := "127.0.0.1:1234"
+	sessionID := GenerateSessionID(testAddr)
+	decodedAddr := ExtractAddrFromSessionID(sessionID)
+	require.Equal(t, testAddr, decodedAddr)
 
-	assert.Equal(t, expectedControllerConfig, cfg.Controller)
+	// old format
+	require.Equal(t, testAddr, ExtractAddrFromSessionID(testAddr))
 }

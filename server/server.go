@@ -17,6 +17,7 @@
  * under the License.
  *
  */
+
 package server
 
 import (
@@ -32,6 +33,7 @@ import (
 	"github.com/apache/kvrocks-controller/config"
 	"github.com/apache/kvrocks-controller/controller"
 	"github.com/apache/kvrocks-controller/logger"
+	"github.com/apache/kvrocks-controller/server/helper"
 	"github.com/apache/kvrocks-controller/store"
 	"github.com/apache/kvrocks-controller/store/engine"
 	"github.com/apache/kvrocks-controller/store/engine/etcd"
@@ -49,16 +51,18 @@ type Server struct {
 func NewServer(cfg *config.Config) (*Server, error) {
 	var persist engine.Engine
 	var err error
+
+	sessionID := helper.GenerateSessionID(cfg.Addr)
 	switch {
 	case strings.EqualFold(cfg.StorageType, "etcd"):
 		logger.Get().Info("Use Etcd as store")
-		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
+		persist, err = etcd.New(sessionID, cfg.Etcd)
 	case strings.EqualFold(cfg.StorageType, "zookeeper"):
 		logger.Get().Info("Use Zookeeper as store")
-		persist, err = zookeeper.New(cfg.Addr, cfg.Zookeeper)
+		persist, err = zookeeper.New(sessionID, cfg.Zookeeper)
 	default:
 		logger.Get().Info("Use Etcd as default store")
-		persist, err = etcd.New(cfg.Addr, cfg.Etcd)
+		persist, err = etcd.New(sessionID, cfg.Etcd)
 	}
 
 	if err != nil {

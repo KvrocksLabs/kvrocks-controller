@@ -17,15 +17,19 @@
  * under the License.
  *
  */
+
 package helper
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
-
-	"github.com/apache/kvrocks-controller/consts"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/apache/kvrocks-controller/consts"
+	"github.com/apache/kvrocks-controller/util"
 )
 
 type Error struct {
@@ -76,4 +80,21 @@ func ResponseError(c *gin.Context, err error) {
 		Error: &Error{Message: err.Error()},
 	})
 	c.Abort()
+}
+
+// generateSessionID encodes the addr to a session ID,
+// which is used to identify the session. And then can be used to
+// parse the leader listening address back.
+func GenerateSessionID(addr string) string {
+	return fmt.Sprintf("%s/%s", util.RandString(8), addr)
+}
+
+// extractAddrFromSessionID decodes the session ID to the addr.
+func ExtractAddrFromSessionID(sessionID string) string {
+	parts := strings.Split(sessionID, "/")
+	if len(parts) != 2 {
+		// for the old session ID format, we use the addr as the session ID
+		return sessionID
+	}
+	return parts[1]
 }
