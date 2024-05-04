@@ -121,15 +121,17 @@ func (handler *ShardHandler) Failover(c *gin.Context) {
 	var req struct {
 		PreferredNodeID string `json:"preferred_node_id"`
 	}
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		helper.ResponseBadRequest(c, err)
-		return
-	}
-	if len(body) > 0 {
-		if err := c.BindJSON(&req); err != nil {
+	if c.Request.Body != nil {
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
 			helper.ResponseBadRequest(c, err)
 			return
+		}
+		if len(body) > 0 {
+			if err := c.BindJSON(&req); err != nil {
+				helper.ResponseBadRequest(c, err)
+				return
+			}
 		}
 	}
 	// We have checked this if statement in middleware.RequiredClusterShard
