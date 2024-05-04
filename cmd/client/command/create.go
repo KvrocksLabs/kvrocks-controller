@@ -139,7 +139,7 @@ func createCluster(cli *client, options *CreateOptions) error {
 		SetPathParam("namespace", options.namespace).
 		SetBody(map[string]interface{}{
 			"name":     options.cluster,
-			"replica":  options.replica,
+			"replicas": options.replica,
 			"nodes":    options.nodes,
 			"password": options.password,
 		}).

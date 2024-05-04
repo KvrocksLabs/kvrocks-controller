@@ -21,6 +21,7 @@ package api
 
 import (
 	"errors"
+	"io"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -116,9 +117,24 @@ func (handler *ShardHandler) Remove(c *gin.Context) {
 func (handler *ShardHandler) Failover(c *gin.Context) {
 	ns := c.Param("namespace")
 	cluster, _ := c.MustGet(consts.ContextKeyCluster).(*store.Cluster)
+
+	var req struct {
+		PreferredNodeID string `json:"preferred_node_id"`
+	}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		helper.ResponseBadRequest(c, err)
+		return
+	}
+	if len(body) > 0 {
+		if err := c.BindJSON(&req); err != nil {
+			helper.ResponseBadRequest(c, err)
+			return
+		}
+	}
 	// We have checked this if statement in middleware.RequiredClusterShard
 	shardIndex, _ := strconv.Atoi(c.Param("shard"))
-	newMasterNodeID, err := cluster.PromoteNewMaster(c, shardIndex, "", "")
+	newMasterNodeID, err := cluster.PromoteNewMaster(c, shardIndex, "", req.PreferredNodeID)
 	if err != nil {
 		helper.ResponseError(c, err)
 		return

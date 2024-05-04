@@ -58,6 +58,7 @@ func init() {
 	rootCommand.AddCommand(command.DeleteCommand)
 	rootCommand.AddCommand(command.ImportCommand)
 	rootCommand.AddCommand(command.MigrateCommand)
+	rootCommand.AddCommand(command.FailoverCommand)
 
 	rootCommand.SilenceUsage = true
 	rootCommand.SilenceErrors = true
