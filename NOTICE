@@ -51,3 +51,5 @@ The text of each license is also included in licenses/LICENSE-[project].txt
 - github.com/stretchr/testify
 - go.uber.org/atomic
 - go.uber.org/zap
+- github.com/go-playground/validator
+- github.com/go-resty/resty
