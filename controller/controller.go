@@ -52,8 +52,6 @@ type Controller struct {
 	readyCh chan struct{}
 	closeCh chan struct{}
 
-	// TODO peers is a map of other controllers Addr which loaded from storage, used by multi-vote to judge node subjective down.
-	peers map[string]string
 	// true means all cluster checker unloaded
 	leaderSuspend bool
 }
