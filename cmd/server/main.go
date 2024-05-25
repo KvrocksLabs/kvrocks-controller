@@ -43,8 +43,7 @@ func init() {
 
 func registerSignal(shutdown chan struct{}) {
 	c := make(chan os.Signal, 1)
-	//signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1}...)
-	signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM}...)
+	signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1}...)
 	go func() {
 		for sig := range c {
 			if handleSignals(sig) {
