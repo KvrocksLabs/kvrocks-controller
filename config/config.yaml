@@ -16,7 +16,7 @@
 # under the License.
 #
 
-addr: "192.168.100.10:9379"
+addr: "127.0.0.1:9379"
 
 
 # Which store engine should be used by controller
