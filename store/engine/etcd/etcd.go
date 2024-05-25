@@ -22,7 +22,9 @@ package etcd
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/apache/kvrocks-controller/consts"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"strings"
 	"sync"
 	"time"
@@ -237,9 +239,25 @@ func (e *Etcd) electLoop(ctx context.Context) {
 				logger.Get().With(
 					zap.Error(err),
 				).Error("Failed to acquire the leader campaign")
+
+				// this error occurred when the lease was deleted by etcd side, renew the session to avoid dead loop.
+				if errors.Is(err, rpctypes.ErrLeaseNotFound) {
+					logger.Get().Info("Reset the leader election session")
+					goto reset
+				}
 				continue
 			}
+
+			watchChan := e.client.Watch(ctx, election.Key())
+			logger.Get().Info(fmt.Sprintf("Watching election path %s", election.Key()))
+
 			select {
+			case resp := <-watchChan:
+				for _, event := range resp.Events {
+					eventName := event.Type.String()
+					key := string(event.Kv.Key)
+					logger.Get().Info(fmt.Sprintf("Watching election path %s, got event %s", key, eventName))
+				}
 			case <-session.Done():
 				logger.Get().Warn("Leader session is done")
 				goto reset
@@ -267,6 +285,10 @@ func (e *Etcd) observeLeaderEvent(ctx context.Context) {
 		case resp := <-ch:
 			e.isReady.Store(true)
 			if len(resp.Kvs) > 0 {
+				for _, kv := range resp.Kvs {
+					logger.Get().Info(fmt.Sprintf("Main controller is [%s -> %s]", string(kv.Key), string(kv.Value)))
+				}
+
 				newLeaderID := string(resp.Kvs[0].Value)
 				e.leaderMu.Lock()
 				e.leaderID = newLeaderID

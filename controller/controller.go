@@ -51,6 +51,11 @@ type Controller struct {
 	state   atomic.Int32
 	readyCh chan struct{}
 	closeCh chan struct{}
+
+	// TODO peers is a map of other controllers Addr which loaded from storage, used by multi-vote to judge node subjective down.
+	peers map[string]string
+	// true means all cluster checker unloaded
+	leaderSuspend bool
 }
 
 func New(s *store.ClusterStore, config *config.ControllerConfig) (*Controller, error) {
@@ -60,6 +65,8 @@ func New(s *store.ClusterStore, config *config.ControllerConfig) (*Controller, e
 		clusters:     make(map[string]*ClusterChecker),
 		readyCh:      make(chan struct{}, 1),
 		closeCh:      make(chan struct{}),
+
+		leaderSuspend: true,
 	}
 	c.state.Store(stateInit)
 	return c, nil
@@ -88,6 +95,7 @@ func (c *Controller) suspend() {
 		cluster.Close()
 		delete(c.clusters, key)
 	}
+	c.leaderSuspend = true
 	c.mu.Unlock()
 }
 
@@ -109,41 +117,32 @@ func (c *Controller) resume(ctx context.Context) error {
 	return nil
 }
 
-func (c *Controller) becomeLeader(ctx context.Context, prevTermLeader string) {
-	if prevTermLeader == c.clusterStore.ID() {
-		return
+func (c *Controller) becomeLeader(ctx context.Context) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.leaderSuspend {
+		if err := c.resume(ctx); err != nil {
+			logger.Get().Error("Failed to resume the cluster checkers", zap.Error(err))
+			return
+		}
+		logger.Get().Info("Became the leader, resume all cluster checkers")
+		c.leaderSuspend = false
 	}
-	if err := c.resume(ctx); err != nil {
-		logger.Get().Error("Failed to resume the controller", zap.Error(err))
-		return
-	}
-	logger.Get().Info("Became the leader, resume the controller")
 }
 
 func (c *Controller) syncLoop(ctx context.Context) {
 	defer c.wg.Done()
-
-	prevTermLeader := ""
-	if c.clusterStore.IsLeader() {
-		c.becomeLeader(ctx, prevTermLeader)
-		prevTermLeader = c.clusterStore.ID()
-	}
 
 	c.readyCh <- struct{}{}
 	for {
 		select {
 		case <-c.clusterStore.LeaderChange():
 			if c.clusterStore.IsLeader() {
-				if prevTermLeader != c.clusterStore.ID() {
-					c.becomeLeader(ctx, prevTermLeader)
-					prevTermLeader = c.clusterStore.ID()
-				}
+				c.becomeLeader(ctx)
 			} else {
-				if prevTermLeader != c.clusterStore.ID() {
-					continue
-				}
 				c.suspend()
-				logger.Get().Warn("Lost the leader, suspend the controller")
+				logger.Get().Warn("Lost the leader, suspend all cluster checkers")
 			}
 		case <-c.closeCh:
 			return

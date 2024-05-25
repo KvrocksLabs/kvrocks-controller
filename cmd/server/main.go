@@ -32,7 +32,7 @@ import (
 	"github.com/apache/kvrocks-controller/version"
 
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v1"
+	"gopkg.in/yaml.v3"
 )
 
 var configPath string
@@ -43,7 +43,8 @@ func init() {
 
 func registerSignal(shutdown chan struct{}) {
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1}...)
+	//signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1}...)
+	signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM}...)
 	go func() {
 		for sig := range c {
 			if handleSignals(sig) {
