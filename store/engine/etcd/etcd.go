@@ -259,6 +259,9 @@ func (e *Etcd) electLoop(ctx context.Context) {
 					logger.Get().Info(fmt.Sprintf("Watching election path %s, got event %s", key, eventName))
 				}
 			case <-session.Done():
+				e.leaderChangeCh <- true
+				e.leaderID = ""
+
 				logger.Get().Warn("Leader session is done")
 				goto reset
 			case <-e.quitCh:

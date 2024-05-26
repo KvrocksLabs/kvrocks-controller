@@ -52,8 +52,7 @@ type Controller struct {
 	readyCh chan struct{}
 	closeCh chan struct{}
 
-	// true means all cluster checker unloaded
-	leaderSuspend bool
+	prevTermLeader string
 }
 
 func New(s *store.ClusterStore, config *config.ControllerConfig) (*Controller, error) {
@@ -63,8 +62,6 @@ func New(s *store.ClusterStore, config *config.ControllerConfig) (*Controller, e
 		clusters:     make(map[string]*ClusterChecker),
 		readyCh:      make(chan struct{}, 1),
 		closeCh:      make(chan struct{}),
-
-		leaderSuspend: true,
 	}
 	c.state.Store(stateInit)
 	return c, nil
@@ -93,7 +90,7 @@ func (c *Controller) suspend() {
 		cluster.Close()
 		delete(c.clusters, key)
 	}
-	c.leaderSuspend = true
+	c.prevTermLeader = ""
 	c.mu.Unlock()
 }
 
@@ -115,17 +112,19 @@ func (c *Controller) resume(ctx context.Context) error {
 	return nil
 }
 
-func (c *Controller) becomeLeader(ctx context.Context) {
+func (c *Controller) becomeLeader(ctx context.Context, newLeaderId string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.leaderSuspend {
+	if c.prevTermLeader != newLeaderId {
 		if err := c.resume(ctx); err != nil {
 			logger.Get().Error("Failed to resume the cluster checkers", zap.Error(err))
 			return
 		}
-		logger.Get().Info("Became the leader, resume all cluster checkers")
-		c.leaderSuspend = false
+		logger.Get().Info(fmt.Sprintf("Became the leader, prevTermLeader %s, newLeaderId %s, resume all cluster checkers", c.prevTermLeader, newLeaderId))
+		c.prevTermLeader = newLeaderId
+	} else {
+		logger.Get().Info(fmt.Sprintf("%v cluster checkers is running", len(c.clusters)))
 	}
 }
 
@@ -137,7 +136,7 @@ func (c *Controller) syncLoop(ctx context.Context) {
 		select {
 		case <-c.clusterStore.LeaderChange():
 			if c.clusterStore.IsLeader() {
-				c.becomeLeader(ctx)
+				c.becomeLeader(ctx, c.clusterStore.Leader())
 			} else {
 				c.suspend()
 				logger.Get().Warn("Lost the leader, suspend all cluster checkers")
