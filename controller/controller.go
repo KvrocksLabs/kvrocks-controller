@@ -113,9 +113,6 @@ func (c *Controller) resume(ctx context.Context) error {
 }
 
 func (c *Controller) becomeLeader(ctx context.Context, newLeaderId string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.prevTermLeader != newLeaderId {
 		if err := c.resume(ctx); err != nil {
 			logger.Get().Error("Failed to resume the cluster checkers", zap.Error(err))
