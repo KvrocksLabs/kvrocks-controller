@@ -45,8 +45,12 @@ func TestClusterNode(t *testing.T) {
 
 		require.NoError(t, redisCli.Do(ctx, "CLUSTER", "RESET").Err())
 		// set the cluster topology
-		cluster := &Cluster{Shards: Shards{
-			{Nodes: []Node{node}, SlotRanges: []SlotRange{{Start: 0, Stop: 16383}}},
+		cluster := &Cluster{Shards: Shards{{
+			Nodes: []Node{node}, SlotRanges: []SlotRange{
+				{Start: 0, Stop: 100},
+				{Start: 102, Stop: 300},
+				{Start: 302, Stop: 16383},
+			}},
 		}}
 		cluster.Version.Store(1)
 		require.NoError(t, node.SyncClusterInfo(ctx, cluster))
@@ -70,6 +74,11 @@ func TestClusterNode(t *testing.T) {
 		require.EqualValues(t, 1, clusterNodes.Version.Load())
 		require.Len(t, clusterNodes.Shards, 1)
 		require.Len(t, clusterNodes.Shards[0].Nodes, 1)
+		require.EqualValues(t, []SlotRange{
+			{Start: 0, Stop: 100},
+			{Start: 102, Stop: 300},
+			{Start: 302, Stop: 16383},
+		}, clusterNodes.Shards[0].SlotRanges)
 		require.EqualValues(t, defaultNodeAddr, clusterNodes.Shards[0].Nodes[0].Addr())
 		require.EqualValues(t, node.ID(), clusterNodes.Shards[0].Nodes[0].ID())
 	})

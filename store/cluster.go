@@ -17,6 +17,7 @@
  * under the License.
  *
  */
+
 package store
 
 import (
@@ -218,10 +219,10 @@ func (cluster *Cluster) MigrateSlot(ctx context.Context, slot int, targetShardId
 	return nil
 }
 
-func (c *Cluster) SetSlot(ctx context.Context, slot int, targetNodeID string) error {
-	version := c.Version.Inc()
-	for i := 0; i < len(c.Shards); i++ {
-		for _, node := range c.Shards[i].Nodes {
+func (cluster *Cluster) SetSlot(ctx context.Context, slot int, targetNodeID string) error {
+	version := cluster.Version.Inc()
+	for i := 0; i < len(cluster.Shards); i++ {
+		for _, node := range cluster.Shards[i].Nodes {
 			clusterNode, ok := node.(*ClusterNode)
 			if !ok {
 				continue
@@ -274,13 +275,17 @@ func ParseCluster(clusterStr string) (*Cluster, error) {
 			if len(fields) < 9 {
 				return nil, fmt.Errorf("master node element less 9, node info[%q]", nodeString)
 			}
-			slots, err := ParseSlotRange(fields[8])
-			if err != nil {
-				return nil, fmt.Errorf("master node parser slot error, node info[%q]", nodeString)
-			}
 			shard := NewShard()
 			shard.Nodes = append(shard.Nodes, node)
-			shard.SlotRanges = append(shard.SlotRanges, *slots)
+
+			// remain fields are slot ranges
+			for i := 8; i < len(fields); i++ {
+				slotRange, err := ParseSlotRange(fields[i])
+				if err != nil {
+					return nil, fmt.Errorf("parse slots error for node[%s]: %w", nodeString, err)
+				}
+				shard.SlotRanges = append(shard.SlotRanges, *slotRange)
+			}
 			shards = append(shards, shard)
 		} else if node.role == RoleSlave {
 			slaveNodes[fields[3]] = append(slaveNodes[fields[3]], node)
