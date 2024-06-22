@@ -142,7 +142,9 @@ func (n *ClusterNode) IsMaster() bool {
 
 func (n *ClusterNode) GetClient() *redis.Client {
 	if client, ok := clients.Load(n.ID()); ok {
-		return client.(*redis.Client)
+		if rdsClient, ok := client.(*redis.Client); ok {
+			return rdsClient
+		}
 	}
 
 	client := redis.NewClient(&redis.Options{
