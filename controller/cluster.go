@@ -22,6 +22,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,8 +33,8 @@ import (
 )
 
 var (
-	ErrClusterNotInitialized = errors.New("ERR CLUSTERDOWN The cluster is not initialized")
-	ErrRestoringBackUp       = errors.New("ERR LOADING kvrocks is restoring the db from backup")
+	ErrClusterNotInitialized = errors.New("CLUSTERDOWN The cluster is not initialized")
+	ErrRestoringBackUp       = errors.New("LOADING kvrocks is restoring the db from backup")
 )
 
 type ClusterCheckOptions struct {
@@ -106,13 +107,15 @@ func (c *ClusterChecker) WithMaxFailureCount(count int64) *ClusterChecker {
 func (c *ClusterChecker) probeNode(ctx context.Context, node store.Node) (int64, error) {
 	clusterInfo, err := node.GetClusterInfo(ctx)
 	if err != nil {
-		switch err.Error() {
-		case ErrRestoringBackUp.Error():
-			// The node is restoring from backup, just skip it
+		// We need to use the string contains to check the error message
+		// since Kvrocks wrongly returns the error message with `ERR` prefix.
+		// And it's fixed in PR: https://github.com/apache/kvrocks/pull/2362,
+		// but we need to be compatible with the old version here.
+		if strings.Contains(err.Error(), ErrRestoringBackUp.Error()) {
 			return -1, nil
-		case ErrClusterNotInitialized.Error():
+		} else if strings.Contains(err.Error(), ErrClusterNotInitialized.Error()) {
 			return -1, ErrClusterNotInitialized
-		default:
+		} else {
 			return -1, err
 		}
 	}
