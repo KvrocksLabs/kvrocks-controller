@@ -51,7 +51,7 @@ const (
 
 var (
 	_validator = validator.New()
-	clients    = make(map[string]*redis.Client)
+	clients    sync.Map
 )
 
 type Node interface {
@@ -75,9 +75,6 @@ type Node interface {
 }
 
 type ClusterNode struct {
-	mu     sync.RWMutex
-	client *redis.Client
-
 	id        string
 	addr      string
 	role      string
@@ -144,9 +141,10 @@ func (n *ClusterNode) IsMaster() bool {
 }
 
 func (n *ClusterNode) GetClient() *redis.Client {
-	if client, ok := clients[n.ID()]; ok {
-		return client
+	if client, ok := clients.Load(n.ID()); ok {
+		return client.(*redis.Client)
 	}
+
 	client := redis.NewClient(&redis.Options{
 		Addr:         n.addr,
 		Password:     n.password,
@@ -156,7 +154,7 @@ func (n *ClusterNode) GetClient() *redis.Client {
 		MaxRetries:   -1, // don't retry inside the client
 		MinIdleConns: minIdleConns,
 	})
-	clients[n.ID()] = client
+	clients.Store(n.ID(), client)
 	return client
 }
 
