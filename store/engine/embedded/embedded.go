@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/logger"
-	"github.com/apache/kvrocks-controller/metadata"
-	"github.com/apache/kvrocks-controller/storage/persistence"
+	persistence "github.com/apache/kvrocks-controller/store/engine"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 	"go.uber.org/zap"
@@ -208,7 +208,7 @@ func (e *Embedded) Get(_ context.Context, key string) ([]byte, error) {
 	defer e.kvMu.RUnlock()
 	value, ok := e.kv[key]
 	if !ok {
-		return nil, metadata.ErrEntryNoExists
+		return nil, consts.ErrNotFound
 	}
 	return value, nil
 }
@@ -216,7 +216,7 @@ func (e *Embedded) Get(_ context.Context, key string) ([]byte, error) {
 func (e *Embedded) Exists(ctx context.Context, key string) (bool, error) {
 	_, err := e.Get(ctx, key)
 	if err != nil {
-		if errors.Is(err, metadata.ErrEntryNoExists) {
+		if errors.Is(err, consts.ErrNotFound) {
 			return false, nil
 		}
 		return false, err
