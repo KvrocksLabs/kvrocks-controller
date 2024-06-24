@@ -34,7 +34,10 @@ github:
     merge:   false
     rebase:  true
   protected_branches:
-    unstable: {}
+    unstable:
+      required_pull_request_reviews:
+        dismiss_stale_reviews: false
+        required_approving_review_count: 1
 
 notifications:
   commits:      commits@kvrocks.apache.org

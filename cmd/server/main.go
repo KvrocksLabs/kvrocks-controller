@@ -20,6 +20,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"os/signal"
@@ -67,6 +68,7 @@ func main() {
 	// os signal handler
 	shutdownCh := make(chan struct{})
 	registerSignal(shutdownCh)
+	ctx, cancelFn := context.WithCancel(context.Background())
 
 	flag.Parse()
 
@@ -92,13 +94,14 @@ func main() {
 		logger.Get().With(zap.Error(err)).Error("Failed to create the server")
 		return
 	}
-	if err := srv.Start(); err != nil {
+	if err := srv.Start(ctx); err != nil {
 		logger.Get().With(zap.Error(err)).Error("Failed to start the server")
 		return
 	}
 
 	// wait for the term signal
 	<-shutdownCh
+	cancelFn()
 	if err := srv.Stop(); err != nil {
 		logger.Get().With(zap.Error(err)).Error("Failed to close the server")
 	} else {

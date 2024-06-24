@@ -20,78 +20,65 @@
 package server
 
 import (
-	"github.com/apache/kvrocks-controller/consts"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/apache/kvrocks-controller/server/helper"
+
+	"github.com/apache/kvrocks-controller/consts"
+	"github.com/apache/kvrocks-controller/server/api"
+	"github.com/apache/kvrocks-controller/server/middleware"
 )
 
 func (srv *Server) initHandlers() {
 	engine := srv.engine
-	engine.Use(CollectMetrics, func(c *gin.Context) {
-		c.Set(consts.ContextKeyStorage, srv.storage)
-		c.Set(consts.ContextKeyMigrator, srv.controller.GetMigrate())
-		c.Set(consts.ContextKeyFailover, srv.controller.GetFailOver())
+	engine.Use(middleware.CollectMetrics, func(c *gin.Context) {
+		c.Set(consts.ContextKeyStore, srv.store)
 		c.Next()
-	}, RedirectIfNotLeader)
-	namespace := &NamespaceHandler{storage: srv.storage}
-	cluster := &ClusterHandler{storage: srv.storage}
-	shard := &ShardHandler{storage: srv.storage}
-	node := &NodeHandler{storage: srv.storage}
+	}, middleware.RedirectIfNotLeader)
+	handler := api.NewHandler(srv.store)
 
-	apiTest := engine.Group("/api/test/")
-	{
-		controller := apiTest.Group("controller")
-		controller.GET("/leader/resign", LeaderResign)
-	}
 	engine.Any("/debug/pprof/*profile", PProf)
 	engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	engine.NoRoute(func(c *gin.Context) {
+		helper.ResponseError(c, consts.ErrNotFound)
+		c.Abort()
+	})
 
 	apiV1 := engine.Group("/api/v1/")
 	{
-		controller := apiV1.Group("controller")
-		{
-			controller.GET("/leader", Leader)
-		}
-
 		namespaces := apiV1.Group("namespaces")
 		{
-			namespaces.GET("", namespace.List)
-			namespaces.GET("/:namespace", namespace.Exists)
-			namespaces.POST("", namespace.Create)
-			namespaces.DELETE("/:namespace", namespace.Remove)
+			namespaces.GET("", handler.Namespace.List)
+			namespaces.GET("/:namespace", handler.Namespace.Exists)
+			namespaces.POST("", handler.Namespace.Create)
+			namespaces.DELETE("/:namespace", handler.Namespace.Remove)
 		}
 
 		clusters := namespaces.Group("/:namespace/clusters")
 		{
-			clusters.Use(requiredNamespace)
-			clusters.GET("", cluster.List)
-			clusters.GET("/:cluster", cluster.Get)
-			clusters.POST("", cluster.Create)
-			clusters.POST("/:cluster/import", cluster.Import)
-			clusters.DELETE("/:cluster", cluster.Remove)
-			clusters.GET("/:cluster/failover/:type", cluster.GetFailOverTasks)
+			clusters.GET("", middleware.RequiredNamespace, handler.Cluster.List)
+			clusters.POST("", middleware.RequiredNamespace, handler.Cluster.Create)
+			clusters.POST("/:cluster/import", middleware.RequiredNamespace, handler.Cluster.Import)
+			clusters.GET("/:cluster", middleware.RequiredCluster, handler.Cluster.Get)
+			clusters.DELETE("/:cluster", middleware.RequiredCluster, handler.Cluster.Remove)
+			clusters.POST("/:cluster/migrate", middleware.RequiredCluster, handler.Cluster.MigrateSlot)
 		}
 
 		shards := clusters.Group("/:cluster/shards")
 		{
-			shards.Use(requiredCluster)
-			shards.GET("", shard.List)
-			shards.GET("/:shard", shard.Get)
-			shards.POST("", shard.Create)
-			shards.DELETE("/:shard", shard.Remove)
-			shards.POST("/:shard/failover", shard.Failover)
-			shards.POST("/:shard/slots", shard.UpdateSlots)
-			shards.DELETE("/:shard/slots", shard.UpdateSlots)
-			shards.POST("/migration/slot_data", shard.MigrateSlotData)
-			shards.POST("/migration/slot_only", shard.MigrateSlotOnly)
+			shards.GET("", middleware.RequiredCluster, handler.Shard.List)
+			shards.POST("", middleware.RequiredCluster, handler.Shard.Create)
+			shards.GET("/:shard", middleware.RequiredClusterShard, handler.Shard.Get)
+			shards.DELETE("/:shard", middleware.RequiredCluster, handler.Shard.Remove)
+			shards.POST("/:shard/failover", middleware.RequiredClusterShard, handler.Shard.Failover)
 		}
 
 		nodes := shards.Group("/:shard/nodes")
 		{
-			nodes.Use(requiredCluster)
-			nodes.GET("", node.List)
-			nodes.POST("", node.Create)
-			nodes.DELETE("/:id", node.Remove)
+			nodes.GET("", middleware.RequiredClusterShard, handler.Node.List)
+			nodes.POST("", middleware.RequiredClusterShard, handler.Node.Create)
+			nodes.DELETE("/:id", middleware.RequiredClusterShard, handler.Node.Remove)
 		}
 	}
 }

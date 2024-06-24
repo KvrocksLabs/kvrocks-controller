@@ -79,10 +79,14 @@ BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'`
 GIT_REVISION=`git rev-parse --short HEAD`
 
 SERVER_TARGET_NAME=kvctl-server
-CLIENT_TARGET_NAME=kvctl-client
+CLIENT_TARGET_NAME=kvctl
 
 for TARGET_NAME in "$SERVER_TARGET_NAME" "$CLIENT_TARGET_NAME"; do
-    CMD_PATH="${GO_PROJECT}/cmd/${TARGET_NAME##*-}" # Remove everything to the left of the last - in the TARGET_NAME variable
+    if [[ "$TARGET_NAME" == "$SERVER_TARGET_NAME" ]]; then
+        CMD_PATH="${GO_PROJECT}/cmd/server"
+    else
+        CMD_PATH="${GO_PROJECT}/cmd/client"
+    fi
 
     if [[ "$BUILDER_IMAGE" == "none" ]]; then
         GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" CGO_ENABLED=0 go build -v -ldflags \

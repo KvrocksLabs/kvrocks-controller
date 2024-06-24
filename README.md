@@ -39,8 +39,29 @@ $ ./_build/kvctl-server -c config/config.yaml
 ```
 ![image](docs/images/server.gif)
 
-### 2. Create the namespace and cluster via kvctl 
-![image](docs/images/client.gif)
+### 2. Use the terminal client to interact with the controller server
 
+```shell
+# Show help
+$ ./_build/kvctl --help
+
+# Create namespace
+$ ./_build/kvctl create namespace test-ns
+
+# List namespaces
+$ ./_build/kvctl list namespaces
+
+# Create cluster in the namespace 
+$ ./_build/kvctl create cluster test-cluster --nodes 127.0.0.1:6666,127.0.0.1:6667 -n test-ns
+
+# List clusters in the namespace
+$ ./_build/kvctl list clusters -n test-ns
+
+# Get cluster in the namespace
+$ ./_build/kvctl get cluster test-cluster -n test-ns
+
+# Migrate slot from source to target
+$ ./_build/kvctl migrate slot 123 --target 1 -n test-ns -c test-cluster
+```
 
 For the HTTP API, you can find the [HTTP API(work in progress)](docs/API.md) for more details.

@@ -24,11 +24,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
-	"github.com/apache/kvrocks-controller/storage/persistence/embedded"
-	"github.com/apache/kvrocks-controller/storage/persistence/etcd"
-	"github.com/apache/kvrocks-controller/storage/persistence/zookeeper"
 	"github.com/go-playground/validator/v10"
+
+	"github.com/apache/kvrocks-controller/logger"
+	"github.com/apache/kvrocks-controller/store/engine/embedded"
+	"github.com/apache/kvrocks-controller/store/engine/etcd"
+	"github.com/apache/kvrocks-controller/store/engine/zookeeper"
 )
 
 type AdminConfig struct {
@@ -36,11 +39,8 @@ type AdminConfig struct {
 }
 
 type FailOverConfig struct {
-	GCIntervalSeconds   int     `yaml:"gc_interval_seconds"`
-	PingIntervalSeconds int     `yaml:"ping_interval_seconds"`
-	MaxPingCount        int64   `yaml:"max_ping_count"`
-	MinAliveSize        int     `yaml:"min_alive_size"`
-	MaxFailureRatio     float64 `yaml:"max_failure_ratio"`
+	PingIntervalSeconds int   `yaml:"ping_interval_seconds"`
+	MaxPingCount        int64 `yaml:"max_ping_count"`
 }
 
 type ControllerConfig struct {
@@ -57,6 +57,13 @@ type Config struct {
 	Zookeeper   *zookeeper.Config `yaml:"zookeeper"`
 	Admin       AdminConfig       `yaml:"admin"`
 	Controller  *ControllerConfig `yaml:"controller"`
+}
+
+func DefaultFailOverConfig() *FailOverConfig {
+	return &FailOverConfig{
+		PingIntervalSeconds: 3,
+		MaxPingCount:        5,
+	}
 }
 
 func Default() *Config {
@@ -76,26 +83,14 @@ func (c *Config) Validate() error {
 	if c.Controller.FailOver.MaxPingCount < 3 {
 		return errors.New("max ping count required >= 3")
 	}
-	if c.Controller.FailOver.GCIntervalSeconds < 60 {
-		return errors.New("gc interval required >= 1min")
-	}
 	if c.Controller.FailOver.PingIntervalSeconds < 1 {
 		return errors.New("ping interval required >= 1s")
 	}
-	if c.Controller.FailOver.MinAliveSize < 2 {
-		return errors.New("min alive size required >= 2")
+	hostPort := strings.Split(c.Addr, ":")
+	if hostPort[0] == "0.0.0.0" || hostPort[0] == "127.0.0.1" {
+		logger.Get().Warn("Leader forward may not work if the host is " + hostPort[0])
 	}
 	return nil
-}
-
-func DefaultFailOverConfig() *FailOverConfig {
-	return &FailOverConfig{
-		GCIntervalSeconds:   3600,
-		PingIntervalSeconds: 3,
-		MaxPingCount:        5,
-		MinAliveSize:        10,
-		MaxFailureRatio:     0.6,
-	}
 }
 
 func (c *Config) getAddr() string {

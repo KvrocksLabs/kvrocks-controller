@@ -20,12 +20,13 @@
 package consts
 
 const (
-	ContextKeyStorage  = "_context_key_storage"
-	ContextKeyMigrator = "_context_key_migrate"
-	ContextKeyFailover = "_context_key_failover"
+	ContextKeyStore        = "_context_key_storage"
+	ContextKeyCluster      = "_context_key_cluster"
+	ContextKeyClusterShard = "_context_key_cluster_shard"
+	ContextKeyHost         = "_context_key_host"
 )
 
 const (
-	HeaderIsRedirect     = "X-Is-Redirect"
-	HeaderDontDetectHost = "X-Dont-Detect-Host"
+	HeaderIsRedirect           = "X-Is-Redirect"
+	HeaderDontCheckClusterMode = "X-Dont-Check-Cluster-Mode"
 )

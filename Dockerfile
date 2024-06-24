@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-FROM golang:1.17 as build
+FROM golang:1.20 as build
 
 WORKDIR /kvctl
 
@@ -32,7 +32,7 @@ FROM ubuntu:focal
 WORKDIR /kvctl
 
 COPY --from=build /kvctl/_build/kvctl-server ./bin/
-COPY --from=build /kvctl/_build/kvctl-client ./bin/
+COPY --from=build /kvctl/_build/kvctl ./bin/
 
 VOLUME /var/lib/kvctl
 
