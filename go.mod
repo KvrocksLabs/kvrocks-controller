@@ -2,8 +2,6 @@ module github.com/apache/kvrocks-controller
 
 go 1.21
 
-toolchain go1.21.2
-
 require (
 	github.com/fatih/color v1.16.0
 	github.com/gin-gonic/gin v1.9.1
