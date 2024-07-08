@@ -64,8 +64,7 @@
 		 }
 	 }
 	 if nodeId == -1 {
-		 return 0, apiPeers, raftPeers,
-			 errors.New(fmt.Sprintf("Address %s is not in embedded store peers configuration", id))
+		 return 0, apiPeers, raftPeers, fmt.Errorf("Address %s is not in embedded store peers configuration", id)
 	 }
 	 return nodeId, apiPeers, raftPeers, nil
  }

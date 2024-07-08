@@ -189,9 +189,9 @@
 					 return nil, false
 				 }
 				 rc.transport.RemovePeer(types.ID(cc.NodeID))
-			 default:
+			 case raftpb.ConfChangeUpdateNode, raftpb.ConfChangeAddLearnerNode:
 			 }
-		 default:
+		 case raftpb.EntryConfChangeV2:
 		 }
 	 }
  
