@@ -95,7 +95,8 @@ var defaultSnapshotCount uint64 = 10000
 // commit channel, followed by a nil message (to indicate the channel is
 // current), then new log entries. To shutdown, close proposeC and read errorC.
 func newRaftNode(
-	id int, peers []string, join bool, getSnapshot func() ([]byte, error), proposeC <-chan string,
+	id int, peers []string, join bool, path string,
+	getSnapshot func() ([]byte, error), proposeC <-chan string,
 	confChangeC <-chan raftpb.ConfChange, leaderChangeCh chan<- bool, commitC chan<- *commit, errorC chan<- error,
 	snapshotterReady chan<- *snap.Snapshotter,
 ) *raftNode {
@@ -109,8 +110,8 @@ func newRaftNode(
 		id:             id,
 		peers:          peers,
 		join:           join,
-		walDir:         fmt.Sprintf("storage-%d", id),
-		snapDir:        fmt.Sprintf("storage-%d-snap", id),
+		walDir:         fmt.Sprintf("%s/storage-%d", path, id),
+		snapDir:        fmt.Sprintf("%s/storage-%d-snap", path, id),
 		getSnapshot:    getSnapshot,
 		snapCount:      defaultSnapshotCount,
 		stopCh:         make(chan struct{}),

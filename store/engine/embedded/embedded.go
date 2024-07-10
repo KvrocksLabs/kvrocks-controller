@@ -114,7 +114,7 @@
 		 return json.Marshal(e.kv)
 	 }
 	 // start raft node synchronization loop
-	 e.node = newRaftNode(nodeId, raftPeers, cfg.Join, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
+	 e.node = newRaftNode(nodeId, raftPeers, cfg.Join, ".", getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
  
 	 // block until snapshotter initialized
 	 e.snapshotter = <-snapshotterReady
