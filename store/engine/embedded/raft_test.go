@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
+	"time"
 )
 
 func mockRaftNode(count int, path string, basePort int) ([]*raftNode, []chan string, []chan bool, []chan *commit) {
@@ -129,16 +130,20 @@ func TestRaftNode_EventualConsistency(t *testing.T) {
 
 			// Define the data to be proposed
 			data := []string{"data1-1", "data1-2", "data1-3"}
-			var leader atomic.Uint64
+			leader := atomic.NewInt64(-1)
 			for i := 0; i < test.count; i++ {
-				go func(i uint64) {
+				go func(i int64) {
 					for {
 						switch {
 						case <-leaderChangeChList[i]:
 							leader.Store(i)
 						}
 					}
-				}(uint64(i))
+				}(int64(i))
+			}
+
+			for leader.Load() < 0 {
+				time.Sleep(10 * time.Millisecond)
 			}
 
 			// Start two goroutines to propose data

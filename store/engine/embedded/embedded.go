@@ -46,9 +46,10 @@ type Peer struct {
 type Config struct {
 	Peers []Peer `yaml:"peers"`
 	Join  bool   `yaml:"join"`
+	Path  string `yaml:"path"`
 }
 
-func parseConfig(id string, cfg *Config) (int, []string, []string, error) {
+func parseConfig(id string, cfg *Config) (int, []string, []string, string, error) {
 	apiPeers := make([]string, len(cfg.Peers))
 	raftPeers := make([]string, len(cfg.Peers))
 	nodeId := -1
@@ -63,10 +64,11 @@ func parseConfig(id string, cfg *Config) (int, []string, []string, error) {
 			raftPeers[i] = peer.Raft
 		}
 	}
+	path := strings.TrimSuffix(cfg.Path, "/")
 	if nodeId == -1 {
-		return 0, apiPeers, raftPeers, fmt.Errorf("Address %s is not in embedded store peers configuration", id)
+		return 0, apiPeers, raftPeers, path, fmt.Errorf("Address %s is not in embedded store peers configuration", id)
 	}
-	return nodeId, apiPeers, raftPeers, nil
+	return nodeId, apiPeers, raftPeers, path, nil
 }
 
 type Embedded struct {
@@ -86,7 +88,7 @@ type Embedded struct {
 }
 
 func New(id string, cfg *Config) (*Embedded, error) {
-	nodeId, apiPeers, raftPeers, err := parseConfig(id, cfg)
+	nodeId, apiPeers, raftPeers, path, err := parseConfig(id, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +116,7 @@ func New(id string, cfg *Config) (*Embedded, error) {
 		return json.Marshal(e.kv)
 	}
 	// start raft node synchronization loop
-	e.node = newRaftNode(nodeId, raftPeers, cfg.Join, ".", getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
+	e.node = newRaftNode(nodeId, raftPeers, cfg.Join, path, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
 
 	// block until snapshotter initialized
 	e.snapshotter = <-snapshotterReady
