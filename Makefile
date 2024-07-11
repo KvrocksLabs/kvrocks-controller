@@ -29,7 +29,7 @@ all: $(PROGRAM)
 
 
 $(PROGRAM):
-	@bash build.sh $(BUILDER_IMAGE)
+	@bash scripts/build.sh $(BUILDER_IMAGE)
 	@echo ""
 	@printf $(MAKECOLOR)"Hint: It's a good idea to run 'make test' ;)"$(ENDCOLOR)
 	@echo ""
