@@ -3,11 +3,12 @@ package embedded
 import (
 	"context"
 	"fmt"
-	"github.com/apache/kvrocks-controller/consts"
 	"os"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/apache/kvrocks-controller/consts"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -63,7 +64,7 @@ func TestEmbedded_SetAndGet(t *testing.T) {
 	e := []*Embedded{e1, e2}
 
 	leader := -1
-	switch {
+	select {
 	case <-e1.LeaderChange():
 		leader = 0
 	case <-e2.LeaderChange():
@@ -99,7 +100,7 @@ func TestEmbedded_Delete(t *testing.T) {
 	e := []*Embedded{e1, e2}
 
 	leader := -1
-	switch {
+	select {
 	case <-e1.LeaderChange():
 		leader = 0
 	case <-e2.LeaderChange():

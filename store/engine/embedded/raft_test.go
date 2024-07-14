@@ -2,15 +2,16 @@ package embedded
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/raft/v3/raftpb"
-	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
-	"go.uber.org/atomic"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"go.etcd.io/etcd/raft/v3/raftpb"
+	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
+	"go.uber.org/atomic"
 )
 
 func mockRaftNode(count int, path string, basePort int) ([]*raftNode, []chan string, []chan bool, []chan *commit) {
@@ -134,7 +135,7 @@ func TestRaftNode_EventualConsistency(t *testing.T) {
 			for i := 0; i < test.count; i++ {
 				go func(i int64) {
 					for {
-						switch {
+						select {
 						case <-leaderChangeChList[i]:
 							leader.Store(i)
 						}
