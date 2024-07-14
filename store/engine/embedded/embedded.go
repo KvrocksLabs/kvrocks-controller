@@ -116,7 +116,15 @@ func New(id string, cfg *Config) (*Embedded, error) {
 		return json.Marshal(e.kv)
 	}
 	// start raft node synchronization loop
-	e.node = newRaftNode(nodeId, raftPeers, cfg.Join, path, getSnapshot, proposeCh, confChangeCh, leaderChangeCh, commitCh, errorCh, snapshotterReady)
+	notifier := &raftNotifier{
+		proposeC:         proposeCh,
+		confChangeC:      confChangeCh,
+		leaderChangeCh:   leaderChangeCh,
+		commitC:          commitCh,
+		errorC:           errorCh,
+		snapshotterReady: snapshotterReady,
+	}
+	e.node = newRaftNode(nodeId, raftPeers, cfg.Join, path, getSnapshot, notifier)
 
 	// block until snapshotter initialized
 	e.snapshotter = <-snapshotterReady
@@ -240,22 +248,22 @@ func (e *Embedded) Exists(ctx context.Context, key string) (bool, error) {
 	return true, nil
 }
 
-func (e *Embedded) Propose(k string, v []byte) {
+func (e *Embedded) Propose(k string, v []byte) error {
 	var buf strings.Builder
 	if err := gob.NewEncoder(&buf).Encode(persistence.Entry{Key: k, Value: v}); err != nil {
 		logger.Get().With(zap.Error(err)).Error("Failed to propose changes")
+		return err
 	}
 	e.proposeCh <- buf.String()
+	return nil
 }
 
 func (e *Embedded) Set(_ context.Context, key string, value []byte) error {
-	e.Propose(key, value)
-	return nil
+	return e.Propose(key, value)
 }
 
 func (e *Embedded) Delete(_ context.Context, key string) error {
-	e.Propose(key, nil)
-	return nil
+	return e.Propose(key, nil)
 }
 
 func (e *Embedded) List(_ context.Context, prefix string) ([]persistence.Entry, error) {

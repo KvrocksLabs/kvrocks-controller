@@ -30,21 +30,17 @@ func mockRaftNode(count int, path string, basePort int) ([]*raftNode, []chan str
 		proposeChList[i] = make(chan string)
 		leaderChangeChList[i] = make(chan bool)
 		commitChList[i] = make(chan *commit)
-		nodes[i] = newRaftNode(
-			i+1,
-			peers,
-			false,
-			path,
-			func() ([]byte, error) {
-				return nil, nil
-			},
+		notifier := &raftNotifier{
 			proposeChList[i],
 			make(chan raftpb.ConfChange),
 			leaderChangeChList[i],
 			commitChList[i],
 			make(chan error),
 			snapshotterReadyList[i],
-		)
+		}
+		nodes[i] = newRaftNode(i+1, peers, false, path, func() ([]byte, error) {
+			return nil, nil
+		}, notifier)
 	}
 	for i := 0; i < count; i++ {
 		<-snapshotterReadyList[i]
