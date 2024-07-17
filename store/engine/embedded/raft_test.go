@@ -71,6 +71,7 @@ func TestRaftNode_processMessages(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "TestRaftNode_processMessages")
 	defer os.RemoveAll(dir)
 
+	//nolint:dogsled
 	nodes, _, _, _ := mockRaftNode(1, dir, 10000)
 	node := nodes[0]
 	msgs := []raftpb.Message{
@@ -98,6 +99,7 @@ func TestRaftNode_processMessages(t *testing.T) {
 func TestRaftNode_saveSnap(t *testing.T) {
 	dir, _ := os.MkdirTemp("", "TestRaftNode_saveSnap")
 	defer os.RemoveAll(dir)
+	//nolint:dogsled
 	nodes, _, _, _ := mockRaftNode(1, dir, 10001)
 	node := nodes[0]
 
@@ -149,11 +151,8 @@ func TestRaftNode_EventualConsistency(t *testing.T) {
 			leader := atomic.NewInt64(-1)
 			for i := 0; i < test.count; i++ {
 				go func(i int64) {
-					for {
-						select {
-						case <-leaderChangeChList[i]:
-							leader.Store(i)
-						}
+					for range leaderChangeChList[i] {
+						leader.Store(i)
 					}
 				}(int64(i))
 			}
