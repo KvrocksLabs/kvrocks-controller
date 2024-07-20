@@ -21,7 +21,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/fatih/color"
@@ -35,7 +34,6 @@ var rootCommand = &cobra.Command{
 	Use:   "kvctl",
 	Short: "kvctl is a command line tool for the Kvrocks controller service",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println(cmd.PersistentFlags().GetString("host"))
 		_, _ = color.New(color.Bold).Println("Run 'kvctl --help' for usage.")
 		os.Exit(0)
 	},
