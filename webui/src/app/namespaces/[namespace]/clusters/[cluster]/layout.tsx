@@ -17,31 +17,10 @@
  * under the License. 
  */
 
-import { AppBar, Container, Toolbar } from "@mui/material";
-import Image from "next/image";
-import NavLinks from "./nav-links";
-
-const links = [
-    {
-        url: '/',
-        title: 'Home'
-    },{
-        url: '/namespaces',
-        title: 'cluster'
-    },{
-        url: 'https://kvrocks.apache.org',
-        title: 'community',
-        _blank: true
-    },
-]
-
-export default function Banner() {
-    return (<AppBar>
-        <Container maxWidth={false}>
-            <Toolbar className="space-x-4">
-                <Image src="/logo.svg" width={40} height={40} alt='logo'></Image>
-                <NavLinks links={links}/>
-            </Toolbar>
-        </Container>
-    </AppBar>)
+export default function Layout({children}: {children: React.ReactNode}) {
+    return (
+        <>
+            {children}
+        </>
+    )
 }

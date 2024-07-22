@@ -17,18 +17,10 @@
  * under the License. 
  */
 
-import { Box, Container } from "@mui/material";
-import Sidebar from "../ui/sidebar";
-
-export default function Cluster() {
+export default function Layout({children}: {children: React.ReactNode}) {
     return (
-        <div className="flex h-full">
-            <Sidebar />
-            <Container maxWidth={false} disableGutters sx={{height: '100%', overflowY: 'auto', marginLeft: '16px'}}>
-                <div>
-                    todo: show all clusters in selected namespace here
-                </div>
-            </Container>
-        </div>
+        <>
+            {children}
+        </>
     )
 }
