@@ -24,6 +24,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useCallback, useRef, useState } from "react";
 import { deleteNamespaceAction, deleteClusterAction } from "@/app/lib/actions";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 interface NamespaceItemProps {
     item: string;
@@ -48,16 +49,21 @@ export default function Item(props: ItemProps) {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
     const openDeleteConfirmDialog = useCallback(() => (setShowDeleteConfirm(true), closeMenu()), [closeMenu]);
     const closeDeleteConfirmDialog = useCallback(() => setShowDeleteConfirm(false), []);
+    const router = useRouter();
 
     const confirmDelete = useCallback(async () => {
         if (type === 'namespace') {
             await deleteNamespaceAction(item);
+            router.push('/namespaces');
+            router.refresh();
         } else if (type === 'cluster') {
             const { namespace } = props as ClusterItemProps;
             await deleteClusterAction(namespace, item);
+            router.push(`/namespaces/${namespace}`);
+            router.refresh();
         }
         closeMenu();
-    }, [item, type, props, closeMenu]);
+    }, [item, type, props, closeMenu, router]);
 
     const activeItem = usePathname().split('/')[type === 'namespace' ? 2 : 4];
     const isActive = item === activeItem;

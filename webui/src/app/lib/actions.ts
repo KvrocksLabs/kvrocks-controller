@@ -31,7 +31,7 @@ export async function createNamespaceAction(name: string): Promise<string> {
 }
 
 export async function deleteNamespaceAction(name: string): Promise<string> {
-    const result = deleteNamespace(name);
+    const result = await deleteNamespace(name);
     revalidatePath("/cluster");
     return result;
 }

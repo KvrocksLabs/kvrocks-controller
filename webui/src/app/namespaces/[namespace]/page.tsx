@@ -18,16 +18,26 @@
  */
 
 import { Box, Container, Card, Typography } from "@mui/material";
-import {NamespaceSidebar} from "../../ui/sidebar";
+import { NamespaceSidebar } from "../../ui/sidebar";
 import { AddClusterCardProps, CreateCard } from "../../ui/createCard";
-import { Cluster, fetchCluster, fetchClusters } from "@/app/lib/api";
+import {
+    Cluster,
+    fetchCluster,
+    fetchClusters,
+    fetchNamespaces,
+} from "@/app/lib/api";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 export default async function Namespace({
     params,
 }: {
   params: { namespace: string };
 }) {
+    const namespaces = await fetchNamespaces();
+    if (!namespaces.includes(params.namespace)) {
+        notFound();
+    }
     const clusters = await fetchClusters(params.namespace);
     const clusterData = await Promise.all(
         clusters.map(async (cluster) => {
@@ -42,7 +52,7 @@ export default async function Namespace({
 
     return (
         <div className="flex h-full">
-            <NamespaceSidebar/>
+            <NamespaceSidebar />
             <Container
                 maxWidth={false}
                 disableGutters
@@ -65,19 +75,20 @@ export default async function Namespace({
                                                 {data.name}
                                             </Typography>
                                             <Typography variant="body2" gutterBottom>
-                                                Version: {data.version}
+                          Version: {data.version}
                                             </Typography>
                                             <Typography variant="body2" gutterBottom>
-                                                Nodes: {data.shards[0].nodes.length}
+                          Nodes: {data.shards[0].nodes.length}
                                             </Typography>
                                             <Typography variant="body2" gutterBottom>
-                                                Slots: {data.shards[0].slot_ranges.join(", ")}
+                          Slots: {data.shards[0].slot_ranges.join(", ")}
                                             </Typography>
                                             <Typography variant="body2" gutterBottom>
-                                                Target Shard Index: {data.shards[0].target_shard_index}
+                          Target Shard Index:{" "}
+                                                {data.shards[0].target_shard_index}
                                             </Typography>
                                             <Typography variant="body2" gutterBottom>
-                                                Migrating Slot: {data.shards[0].migrating_slot}
+                          Migrating Slot: {data.shards[0].migrating_slot}
                                             </Typography>
                                         </CreateCard>
                                     </Link>
@@ -88,4 +99,11 @@ export default async function Namespace({
             </Container>
         </div>
     );
+}
+
+export async function generateStaticParams() {
+    const namespaces = await fetchNamespaces();
+    return namespaces.map((namespace: string) => ({
+        namespace,
+    }));
 }

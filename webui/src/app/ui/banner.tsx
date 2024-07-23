@@ -27,7 +27,7 @@ const links = [
         title: 'Home'
     },{
         url: '/namespaces',
-        title: 'cluster'
+        title: 'Namespaces'
     },{
         url: 'https://kvrocks.apache.org',
         title: 'community',
