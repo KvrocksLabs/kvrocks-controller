@@ -57,7 +57,7 @@ export const CreateCard: React.FC<CreateCardProps> = ({ children }) => {
 export const AddClusterCardProps = ({ namespace }: { namespace: string }) => {
     return (
         <>
-            <Image src={addIcon} alt="Add Icon" width={65} height={65} />
+            <Image src={addIcon} alt="Add Icon" width={75} height={75} />
             <div className="mt-4">
                 <ClusterCreation position="card" namespace={namespace} />
             </div>

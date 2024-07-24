@@ -20,11 +20,12 @@
 'use client';
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, IconButton, ListItem, ListItemButton, ListItemText, Menu, MenuItem, Tooltip } from "@mui/material";
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
-import DeleteIcon from '@mui/icons-material/Delete';
+import deleteIcon from '../../../public/deleteIcon.svg';
 import { useCallback, useRef, useState } from "react";
 import { deleteNamespaceAction, deleteClusterAction } from "@/app/lib/actions";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface NamespaceItemProps {
     item: string;
@@ -101,7 +102,7 @@ export default function Item(props: ItemProps) {
                 }}
             >
                 <MenuItem onClick={openDeleteConfirmDialog}>
-                    <DeleteIcon color="error" />
+                    <Image src={deleteIcon} alt="Delete" width={17.5} height={17.5} />
                 </MenuItem>
             </Menu>
             <Dialog
