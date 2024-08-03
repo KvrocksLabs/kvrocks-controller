@@ -18,9 +18,10 @@
  */
 
 "use client";
-import { createNamespaceAction, createClusterAction } from "@/app/lib/actions";
 import React from "react";
 import FormDialog from "./formDialog";
+import { createCluster, createNamespace } from "../lib/api";
+import { useRouter } from "next/navigation";
 
 type NamespaceFormProps = {
   position: string;
@@ -31,13 +32,33 @@ type ClusterFormProps = {
   namespace: string;
 };
 
+const containsWhitespace = (value: string): boolean => /\s/.test(value);
+
+const validateFormData = (formData: FormData, fields: string[]): string | null => {
+    for (const field of fields) {
+        const value = formData.get(field);
+        if (typeof value === "string" && containsWhitespace(value)) {
+            return `${field.charAt(0).toUpperCase() + field.slice(1)} cannot contain any whitespace characters.`;
+        }
+    }
+    return null;
+};
+
 export const NamespaceCreation: React.FC<NamespaceFormProps> = ({
     position,
 }) => {
+    const router = useRouter();
     const handleSubmit = async (formData: FormData) => {
+        const fieldsToValidate = ["name"];
+        const errorMessage = validateFormData(formData, fieldsToValidate);
+        if (errorMessage) {
+            return errorMessage;
+        }
+
         const formObj = Object.fromEntries(formData.entries());
-        if (typeof formObj["name"] === "string") {
-            return await createNamespaceAction(formObj["name"]);
+        const response = await createNamespace(formObj["name"] as string);
+        if (response === "") {
+            router.push(`/namespaces/${formObj["name"]}`);
         }
         return "Invalid form data";
     };
@@ -59,20 +80,36 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
     position,
     namespace,
 }) => {
+    const router = useRouter();
     const handleSubmit = async (formData: FormData) => {
+        
+        const fieldsToValidate = ["name", "replicas", "password"];
+        const errorMessage = validateFormData(formData, fieldsToValidate);
+        if (errorMessage) {
+            return errorMessage;
+        }
         const formObj = Object.fromEntries(formData.entries());
-        if (typeof formObj["name"] === "string") {
-            const nodes = JSON.parse(String(formObj["nodes"]));
-            const replicas = parseInt(String(formObj["replicas"]));
-            const password = String(formObj["password"]);
+        const nodes = JSON.parse(formObj["nodes"] as string) as string[];
+        if (nodes.length === 0) {
+            return "Nodes cannot be empty.";
+        }
 
-            return await createClusterAction(
-                formObj["name"],
-                nodes,
-                replicas,
-                password,
-                namespace
-            );
+        for (const node of nodes) {
+            if (containsWhitespace(node)) {
+                return "Nodes cannot contain any whitespace characters.";
+            }
+        }
+
+        const response = await createCluster(
+            formObj["name"] as string,
+            nodes,
+            parseInt(formObj["replicas"] as string),
+            formObj["password"] as string,
+            namespace
+        );
+        if (response === "") {
+            router.push(`/namespaces/${namespace}/clusters/${formObj["name"]}`);
+            return;
         }
         return "Invalid form data";
     };
@@ -102,4 +139,3 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
         />
     );
 };
-

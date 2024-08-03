@@ -17,22 +17,11 @@
  * under the License.
  */
 
-import yaml from "js-yaml";
-import fs from "fs";
-import path from "path";
 import axios, { AxiosError } from "axios";
 
-const configFile = "./config/config.yaml";
 const apiPrefix = "/api/v1";
-let host;
-try {
-    const wholeFilePath = path.join(process.cwd(), "..", configFile);
-    const doc = yaml.load(fs.readFileSync(wholeFilePath, "utf8"));
-    host = (doc as any)["addr"];
-} catch (error) {
-    host = "127.0.0.1:9379";
-}
-const apiHost = `http://${host}${apiPrefix}`;
+const apiHost = `${apiPrefix}`;
+
 export interface Cluster {
   name: string;
   version: number;
@@ -48,6 +37,7 @@ export async function fetchNamespaces(): Promise<string[]> {
         return [];
     }
 }
+
 export async function createNamespace(name: string): Promise<string> {
     try {
         const { data: responseData } = await axios.post(`${apiHost}/namespaces`, {
@@ -128,8 +118,8 @@ export async function fetchCluster(
 }
 
 export async function deleteCluster(
-    cluster: string,
-    namespace: string
+    namespace: string,
+    cluster: string
 ): Promise<string> {
     try {
         const { data: responseData } = await axios.delete(

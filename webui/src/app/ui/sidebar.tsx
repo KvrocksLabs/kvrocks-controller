@@ -17,14 +17,30 @@
  * under the License.
  */
 
+'use client';
+
 import { Divider, List } from "@mui/material";
 import { fetchClusters, fetchNamespaces } from "@/app/lib/api";
 import Item from "./sidebarItem";
 import { ClusterCreation, NamespaceCreation } from "./formCreation";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
-export async function NamespaceSidebar() {
-    const namespaces = await fetchNamespaces();
+export function NamespaceSidebar() {
+    const [namespaces, setNamespaces] = useState<string[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const fetchedNamespaces = await fetchNamespaces();
+                setNamespaces(fetchedNamespaces);
+            } catch (err) {
+                setError("Failed to fetch namespaces");
+            }
+        };
+        fetchData();
+    }, []);
 
     return (
         <div className="w-60 h-full flex">
@@ -32,23 +48,37 @@ export async function NamespaceSidebar() {
                 <div className="mt-2 mb-4 text-center">
                     <NamespaceCreation position="sidebar" />
                 </div>
-                {namespaces.map((namespace, index) => (
-                    <>
-                        {index === 0 && <Divider variant="fullWidth" />}
+                {error && <p style={{ color: "red" }}>{error}</p>}
+                {namespaces.map((namespace) => (
+                    <div key={namespace}>
+                        <Divider variant="fullWidth" />
                         <Link href={`/namespaces/${namespace}`} passHref>
                             <Item type="namespace" item={namespace} />
                         </Link>
-                        <Divider variant="fullWidth" />
-                    </>
+                    </div>
                 ))}
+                <Divider variant="fullWidth" />
             </List>
             <Divider orientation="vertical" variant="fullWidth" flexItem />
         </div>
     );
 }
 
-export async function ClusterSidebar({ namespace }: { namespace: string }) {
-    const clusters = await fetchClusters(namespace);
+export function ClusterSidebar({ namespace }: { namespace: string }) {
+    const [clusters, setClusters] = useState<string[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const fetchedClusters = await fetchClusters(namespace);
+                setClusters(fetchedClusters);
+            } catch (err) {
+                setError("Failed to fetch clusters");
+            }
+        };
+        fetchData();
+    }, [namespace]);
 
     return (
         <div className="w-60 h-full flex">
@@ -56,18 +86,16 @@ export async function ClusterSidebar({ namespace }: { namespace: string }) {
                 <div className="mt-2 mb-4 text-center">
                     <ClusterCreation namespace={namespace} position="sidebar" />
                 </div>
-                {clusters.map((cluster, index) => (
-                    <>
-                        {index === 0 && <Divider variant="fullWidth" />}
-                        <Link
-                            href={`/namespaces/${namespace}/clusters/${cluster}`}
-                            passHref
-                        >
+                {error && <p style={{ color: "red" }}>{error}</p>}
+                {clusters.map((cluster) => (
+                    <div key={cluster}>
+                        <Divider variant="fullWidth" />
+                        <Link href={`/namespaces/${namespace}/clusters/${cluster}`} passHref>
                             <Item type="cluster" item={cluster} namespace={namespace}/>
                         </Link>
-                        <Divider variant="fullWidth" />
-                    </>
+                    </div>
                 ))}
+                <Divider variant="fullWidth" />
             </List>
             <Divider orientation="vertical" variant="fullWidth" flexItem />
         </div>

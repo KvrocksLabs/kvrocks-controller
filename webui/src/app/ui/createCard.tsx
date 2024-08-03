@@ -20,10 +20,10 @@
 "use client";
 
 import { Card } from "@mui/material";
-import Image, { StaticImageData } from "next/image";
-import React, { ReactNode, useEffect } from "react";
+import React, { ReactNode } from "react";
 import { ClusterCreation } from "./formCreation";
-import addIcon from "../../../public/addIcon.svg";
+import { faCirclePlus } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 interface CreateCardProps {
   children: ReactNode;
@@ -46,8 +46,11 @@ export const CreateCard: React.FC<CreateCardProps> = ({ children }) => {
                     boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
                 },
                 cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
             }}
-            className="flex flex-col items-center justify-center"
         >
             {children}
         </Card>
@@ -57,7 +60,15 @@ export const CreateCard: React.FC<CreateCardProps> = ({ children }) => {
 export const AddClusterCardProps = ({ namespace }: { namespace: string }) => {
     return (
         <>
-            <Image src={addIcon} alt="Add Icon" width={75} height={75} />
+            <FontAwesomeIcon
+                icon={faCirclePlus}
+                size="4x"
+                style={{
+                    color: "#e0e0e0",
+                    marginBottom: "8px",
+                    transition: "color 0.2s",
+                }}
+            />
             <div className="mt-4">
                 <ClusterCreation position="card" namespace={namespace} />
             </div>

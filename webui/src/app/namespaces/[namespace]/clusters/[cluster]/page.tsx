@@ -17,21 +17,18 @@
  * under the License.
  */
 
+'use client';
+
 import { Box, Container, Card, Typography } from "@mui/material";
 import { ClusterSidebar } from "../../../../ui/sidebar";
-import { AddClusterCardProps, CreateCard } from "../../../../ui/createCard";
-import { fetchClusters } from "@/app/lib/api";
-import Link from "next/link";
 
-export default async function Cluster({
-    params,
-}: {
-  params: { namespace: string; cluster: string };
-}) {
-    const clusters = await fetchClusters(params.namespace);
+export default function Cluster() {
+    const url=window.location.href;
+    const namespace = url.split("/", 5)[4];
+
     return (
         <div className="flex h-full">
-            <ClusterSidebar namespace={params.namespace} />
+            <ClusterSidebar namespace={namespace} />
             <Container
                 maxWidth={false}
                 disableGutters

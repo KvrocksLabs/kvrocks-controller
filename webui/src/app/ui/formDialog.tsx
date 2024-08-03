@@ -118,7 +118,7 @@ const FormDialog: React.FC<FormDialogProps> = ({
                                             <TextField
                                                 {...params}
                                                 variant="outlined"
-                                                label={`Add ${field.label}`}
+                                                label={`Add ${field.label}*`}
                                                 placeholder="Type and press enter"
                                             />
                                         )}
