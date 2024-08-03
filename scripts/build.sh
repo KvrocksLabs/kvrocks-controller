@@ -75,8 +75,6 @@ fi
 GO_PROJECT=github.com/apache/kvrocks-controller
 BUILD_DIR=./_build
 VERSION=`cat VERSION.txt`
-BUILD_DATE=`date -u +'%Y-%m-%dT%H:%M:%SZ'`
-GIT_REVISION=`git rev-parse --short HEAD`
 
 SERVER_TARGET_NAME=kvctl-server
 CLIENT_TARGET_NAME=kvctl
@@ -90,13 +88,13 @@ for TARGET_NAME in "$SERVER_TARGET_NAME" "$CLIENT_TARGET_NAME"; do
 
     if [[ "$BUILDER_IMAGE" == "none" ]]; then
         GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" CGO_ENABLED=0 go build -v -ldflags \
-            "-X $GO_PROJECT/version.Version=$VERSION -X $GO_PROJECT/version.BuildDate=$BUILD_DATE -X $GO_PROJECT/version.BuildCommit=$GIT_REVISION" \
+            "-X $GO_PROJECT/version.Version=$VERSION" \
             -o ${TARGET_NAME} ${CMD_PATH}
     else
         docker run --rm --privileged -it -v $(pwd):/${TARGET_NAME} -w /${TARGET_NAME} \
             -e GOOS="$TARGET_OS" -e GOARCH="$TARGET_ARCH" -e CGO_ENABLED=0 \
             $BUILDER_IMAGE go build -v -ldflags \
-            "-X $GO_PROJECT/version.Version=$VERSION -X $GO_PROJECT/version.BuildDate=$BUILD_DATE -X $GO_PROJECT/version.BuildCommit=$GIT_REVISION" \
+            "-X $GO_PROJECT/version.Version=$VERSION" \
             -o /${TARGET_NAME}/${TARGET_NAME} ${CMD_PATH}
     fi
 

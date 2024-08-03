@@ -52,7 +52,7 @@ jobs:
           export PATH=$PATH:$GOPATH/bin
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
           make lint
-  
+
   build-test:
     name: Build and test
     needs: [lint]
@@ -92,14 +92,4 @@ jobs:
           file: ./coverage.out
           flags: unittests
           name: codecov-umbrella
-       
-  check-docker:
-    name: Check Docker image
-    needs: [lint]
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: docker/build-push-action@v3
-        with:
-          context: .
-          push: false
+

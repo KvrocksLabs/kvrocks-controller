@@ -36,8 +36,7 @@ COPY --from=build /kvctl/_build/kvctl ./bin/
 
 VOLUME /var/lib/kvctl
 
-COPY ./LICENSE ./
-COPY ./NOTICE ./
+COPY ./LICENSE ./NOTICE ./licenses ./
 COPY ./config/config.yaml /var/lib/kvctl/
 
 EXPOSE 9379:9379

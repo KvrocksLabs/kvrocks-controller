@@ -20,6 +20,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"strconv"
@@ -128,7 +129,7 @@ func (handler *ShardHandler) Failover(c *gin.Context) {
 			return
 		}
 		if len(body) > 0 {
-			if err := c.BindJSON(&req); err != nil {
+			if err := json.Unmarshal(body, &req); err != nil {
 				helper.ResponseBadRequest(c, err)
 				return
 			}
