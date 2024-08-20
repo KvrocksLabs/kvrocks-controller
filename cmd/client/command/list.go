@@ -86,6 +86,9 @@ func listNamespace(cli *client) error {
 	if err != nil {
 		return err
 	}
+	if rsp.IsError() {
+		return unmarshalError(rsp.Body())
+	}
 
 	var result struct {
 		Namespaces []string `json:"namespaces"`
@@ -109,6 +112,9 @@ func listClusters(cli *client) error {
 		Get("/namespaces/{namespace}/clusters")
 	if err != nil {
 		return err
+	}
+	if rsp.IsError() {
+		return unmarshalError(rsp.Body())
 	}
 
 	var result struct {
