@@ -37,9 +37,9 @@ func (srv *Server) initHandlers() {
 		c.Next()
 	}, middleware.RedirectIfNotLeader)
 
-	if srv.config.ApiAuth.ApiUser != "" && srv.config.ApiAuth.ApiPassword != "" {
+	if srv.config.IsApiAuthConfigured() {
 		engine.Use(func(c *gin.Context) {
-			c.Set(consts.ContextKeyApiAuth, srv.config.ApiAuth.ApiUser+":"+srv.config.ApiAuth.ApiPassword)
+			c.Set(consts.ContextKeyApiAuth, srv.config.ApiAuth.Username+":"+srv.config.ApiAuth.Password)
 			c.Next()
 		}, middleware.RequiredAuth)
 	}
@@ -90,3 +90,4 @@ func (srv *Server) initHandlers() {
 		}
 	}
 }
+

@@ -38,8 +38,8 @@ type AdminConfig struct {
 }
 
 type ApiAuthConfig struct {
-	ApiUser     string `yaml:"apiUser"`
-	ApiPassword string `yaml:"apiPassword"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 type FailOverConfig struct {
@@ -60,7 +60,7 @@ type Config struct {
 	Zookeeper   *zookeeper.Config `yaml:"zookeeper"`
 	Admin       AdminConfig       `yaml:"admin"`
 	Controller  *ControllerConfig `yaml:"controller"`
-	ApiAuth     *ApiAuthConfig    `yaml:"apiAuth"`
+	ApiAuth     *ApiAuthConfig    `yaml:"api_auth"`
 }
 
 func DefaultFailOverConfig() *FailOverConfig {
@@ -95,6 +95,13 @@ func (c *Config) Validate() error {
 		logger.Get().Warn("Leader forward may not work if the host is " + hostPort[0])
 	}
 	return nil
+}
+
+func (c *Config) IsApiAuthConfigured() bool {
+	if c.ApiAuth.User != "" && c.ApiAuth.Password != "" {
+		return true
+	}
+	return false
 }
 
 func (c *Config) getAddr() string {
@@ -137,3 +144,4 @@ func getLocalIP() string {
 	}
 	return ""
 }
+
