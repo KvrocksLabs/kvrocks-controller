@@ -58,7 +58,9 @@ kvctl create node 127.0.0.1:6379 -n <namespace> -c <cluster> --shard <shard>
 	PreRunE: createPreRun,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
-		client := newClient(host)
+		user, _ := cmd.Flags().GetString("api-user")
+		password, _ := cmd.Flags().GetString("api-password")
+		client := newClient(host, user, password)
 		switch strings.ToLower(args[0]) {
 		case ResourceNamespace:
 			if len(args) < 2 {

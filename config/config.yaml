@@ -18,6 +18,9 @@
 
 addr: "127.0.0.1:9379"
 
+apiAuth:
+  apiUser: "testUser"
+  apiPassword: "testPassword"
 
 # Which store engine should be used by controller
 # options: etcd, zookeeper

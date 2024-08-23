@@ -49,7 +49,9 @@ kvctl migrate slot <slot> --target <target_shard_index> -n <namespace> -c <clust
 	PreRunE: migrationPreRun,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
-		client := newClient(host)
+		user, _ := cmd.Flags().GetString("api-user")
+		password, _ := cmd.Flags().GetString("api-password")
+		client := newClient(host, user, password)
 		resource := strings.ToLower(args[0])
 		switch resource {
 		case "slot":

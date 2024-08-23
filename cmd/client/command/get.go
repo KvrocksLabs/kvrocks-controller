@@ -46,7 +46,9 @@ kvctl get cluster <cluster> -n <namespace>
 	PreRunE: getPreRun,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
-		client := newClient(host)
+		user, _ := cmd.Flags().GetString("api-user")
+		password, _ := cmd.Flags().GetString("api-password")
+		client := newClient(host, user, password)
 		if len(args) < 2 {
 			return fmt.Errorf("missing resource name, must be one of [cluster, shard]")
 		}

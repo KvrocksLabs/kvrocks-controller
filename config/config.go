@@ -37,6 +37,11 @@ type AdminConfig struct {
 	Addr string `yaml:"addr"`
 }
 
+type ApiAuthConfig struct {
+	ApiUser     string `yaml:"apiUser"`
+	ApiPassword string `yaml:"apiPassword"`
+}
+
 type FailOverConfig struct {
 	PingIntervalSeconds int   `yaml:"ping_interval_seconds"`
 	MaxPingCount        int64 `yaml:"max_ping_count"`
@@ -55,6 +60,7 @@ type Config struct {
 	Zookeeper   *zookeeper.Config `yaml:"zookeeper"`
 	Admin       AdminConfig       `yaml:"admin"`
 	Controller  *ControllerConfig `yaml:"controller"`
+	ApiAuth     *ApiAuthConfig    `yaml:"apiAuth"`
 }
 
 func DefaultFailOverConfig() *FailOverConfig {

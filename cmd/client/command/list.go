@@ -48,7 +48,9 @@ kvctl list nodes -n <namespace> -c <cluster>
 	ValidArgs: []string{"namespaces", "clusters", "shards", "nodes"},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
-		client := newClient(host)
+		user, _ := cmd.Flags().GetString("api-user")
+		password, _ := cmd.Flags().GetString("api-password")
+		client := newClient(host, user, password)
 		switch strings.ToLower(args[0]) {
 		case "namespaces":
 			return listNamespace(client)

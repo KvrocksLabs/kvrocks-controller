@@ -49,6 +49,10 @@ func main() {
 func init() {
 	rootCommand.PersistentFlags().StringP("host", "H",
 		"http://127.0.0.1:9379", "The host of the Kvrocks controller service")
+	rootCommand.PersistentFlags().StringP("api-user", "U",
+		"", "The user of the Kvrocks controller api")
+	rootCommand.PersistentFlags().StringP("api-password", "P",
+		"", "The password of the Kvrocks controller api user")
 
 	rootCommand.AddCommand(command.ListCommand)
 	rootCommand.AddCommand(command.CreateCommand)

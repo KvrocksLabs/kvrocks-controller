@@ -47,7 +47,9 @@ kvctl import cluster <cluster> --nodes 127.0.0.1:6379,127.0.0.1:6380
 	PreRunE: importPreRun,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
-		client := newClient(host)
+		user, _ := cmd.Flags().GetString("api-user")
+		password, _ := cmd.Flags().GetString("api-password")
+		client := newClient(host, user, password)
 		resource := strings.ToLower(args[0])
 		switch resource {
 		case ResourceCluster:

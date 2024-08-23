@@ -59,7 +59,9 @@ kvctl delete node <node_id> -n <namespace> -c <cluster> --shard <shard>
 			return fmt.Errorf("missing resource name")
 		}
 		host, _ := cmd.Flags().GetString("host")
-		client := newClient(host)
+		user, _ := cmd.Flags().GetString("api-user")
+		password, _ := cmd.Flags().GetString("api-password")
+		client := newClient(host, user, password)
 		switch resource {
 		case ResourceNamespace:
 			namespace := args[1]

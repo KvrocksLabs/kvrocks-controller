@@ -48,11 +48,16 @@ type response struct {
 	Data  any           `json:"data"`
 }
 
-func newClient(host string) *client {
+func newClient(host, apiUser, apiPass string) *client {
 	if host == "" {
 		host = defaultHost
 	}
-	restyCli := resty.New().SetBaseURL(host + apiVersionV1)
+	var restyCli *resty.Client
+	if apiUser != "" && apiPass != "" {
+		restyCli = resty.New().SetDisableWarn(true).SetBaseURL(host+apiVersionV1).SetBasicAuth(apiUser, apiPass)
+	} else {
+		restyCli = resty.New().SetBaseURL(host + apiVersionV1)
+	}
 	return &client{
 		restyCli: restyCli,
 		host:     host,

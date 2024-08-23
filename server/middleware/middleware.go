@@ -21,9 +21,11 @@
 package middleware
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -129,5 +131,56 @@ func RequiredClusterShard(c *gin.Context) {
 
 	c.Set(consts.ContextKeyCluster, cluster)
 	c.Set(consts.ContextKeyClusterShard, shard)
+	c.Next()
+}
+
+func RequiredAuth(c *gin.Context) {
+	cfgUserCtxValue, _ := c.Get(consts.ContextKeyApiAuth)
+	var cfgUser string
+	var cfgPass string
+	if cfgUserStr, ok := cfgUserCtxValue.(string); ok {
+		cfgUser = strings.Split(cfgUserStr, ":")[0]
+		cfgPass = strings.Split(cfgUserStr, ":")[1]
+	}
+	if cfgUser == "" || cfgPass == "" {
+		helper.ResponseError(c, errors.New("api auth error: user or password is null"))
+		return
+	}
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		helper.ResponseError(c, errors.New("api auth error: Authorization header not found"))
+		return
+	}
+
+	// parse Authorization header
+	authParts := strings.Split(authHeader, " ")
+	if len(authParts) != 2 || authParts[0] != "Basic" {
+		helper.ResponseError(c, errors.New("api auth error: parse Authorization header error"))
+		return
+	}
+
+	// decode Authorization header
+	decoded, err := base64.StdEncoding.DecodeString(authParts[1])
+	if err != nil {
+		helper.ResponseError(c, errors.New("api auth error: decode Authorization header error"))
+		return
+	}
+
+	// parse Authorization header value
+	credentials := strings.Split(string(decoded), ":")
+	if len(credentials) != 2 {
+		helper.ResponseError(c, errors.New("api auth error: parse Authorization header value error"))
+		return
+	}
+
+	// verify user or password
+	username := credentials[0]
+	password := credentials[1]
+	if username != cfgUser || password != cfgPass {
+		helper.ResponseError(c, errors.New("api auth error: user or password not match"))
+		return
+	}
+
+	// continue next middleware
 	c.Next()
 }

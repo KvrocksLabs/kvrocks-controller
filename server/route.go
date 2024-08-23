@@ -36,6 +36,14 @@ func (srv *Server) initHandlers() {
 		c.Set(consts.ContextKeyStore, srv.store)
 		c.Next()
 	}, middleware.RedirectIfNotLeader)
+
+	if srv.config.ApiAuth.ApiUser != "" && srv.config.ApiAuth.ApiPassword != "" {
+		engine.Use(func(c *gin.Context) {
+			c.Set(consts.ContextKeyApiAuth, srv.config.ApiAuth.ApiUser+":"+srv.config.ApiAuth.ApiPassword)
+			c.Next()
+		}, middleware.RequiredAuth)
+	}
+
 	handler := api.NewHandler(srv.store)
 
 	engine.Any("/debug/pprof/*profile", PProf)

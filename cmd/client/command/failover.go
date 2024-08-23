@@ -51,7 +51,9 @@ kvctl failover shard <shard_index> --preferred <node_id> -n <namespace> -c <clus
 			return fmt.Errorf("missing shard index, plese specify the shard index")
 		}
 		host, _ := cmd.Flags().GetString("host")
-		client := newClient(host)
+		user, _ := cmd.Flags().GetString("api-user")
+		password, _ := cmd.Flags().GetString("api-password")
+		client := newClient(host, user, password)
 		resource := args[0]
 		switch resource {
 		case "shard":

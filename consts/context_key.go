@@ -24,6 +24,7 @@ const (
 	ContextKeyCluster      = "_context_key_cluster"
 	ContextKeyClusterShard = "_context_key_cluster_shard"
 	ContextKeyHost         = "_context_key_host"
+	ContextKeyApiAuth      = "_context_key_api_auth"
 )
 
 const (
