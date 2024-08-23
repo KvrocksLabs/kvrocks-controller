@@ -98,7 +98,7 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) IsApiAuthConfigured() bool {
-	if c.ApiAuth.User != "" && c.ApiAuth.Password != "" {
+	if c.ApiAuth.Username != "" && c.ApiAuth.Password != "" {
 		return true
 	}
 	return false
