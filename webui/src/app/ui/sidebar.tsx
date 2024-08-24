@@ -19,7 +19,7 @@
 
 'use client';
 
-import { Divider, List } from "@mui/material";
+import { Divider, List, Typography } from "@mui/material";
 import { fetchClusters, fetchNamespaces } from "@/app/lib/api";
 import Item from "./sidebarItem";
 import { ClusterCreation, NamespaceCreation } from "./formCreation";
@@ -48,18 +48,18 @@ export function NamespaceSidebar() {
                 <div className="mt-2 mb-4 text-center">
                     <NamespaceCreation position="sidebar" />
                 </div>
-                {error && <p style={{ color: "red" }}>{error}</p>}
+                {error && <Typography color="error" align="center">{error}</Typography>}
                 {namespaces.map((namespace) => (
                     <div key={namespace}>
-                        <Divider variant="fullWidth" />
+                        <Divider />
                         <Link href={`/namespaces/${namespace}`} passHref>
                             <Item type="namespace" item={namespace} />
                         </Link>
                     </div>
                 ))}
-                <Divider variant="fullWidth" />
+                <Divider />
             </List>
-            <Divider orientation="vertical" variant="fullWidth" flexItem />
+            <Divider orientation="vertical" flexItem />
         </div>
     );
 }
@@ -86,18 +86,18 @@ export function ClusterSidebar({ namespace }: { namespace: string }) {
                 <div className="mt-2 mb-4 text-center">
                     <ClusterCreation namespace={namespace} position="sidebar" />
                 </div>
-                {error && <p style={{ color: "red" }}>{error}</p>}
+                {error && <Typography color="error" align="center">{error}</Typography>}
                 {clusters.map((cluster) => (
                     <div key={cluster}>
-                        <Divider variant="fullWidth" />
+                        <Divider />
                         <Link href={`/namespaces/${namespace}/clusters/${cluster}`} passHref>
-                            <Item type="cluster" item={cluster} namespace={namespace}/>
+                            <Item type="cluster" item={cluster} namespace={namespace} />
                         </Link>
                     </div>
                 ))}
-                <Divider variant="fullWidth" />
+                <Divider />
             </List>
-            <Divider orientation="vertical" variant="fullWidth" flexItem />
+            <Divider orientation="vertical" flexItem />
         </div>
     );
 }
