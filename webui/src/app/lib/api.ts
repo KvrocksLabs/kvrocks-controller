@@ -193,11 +193,9 @@ export async function deleteShard(
     shard: string
 ): Promise<string> {
     try {
-        console.log("Deleting shard", namespace, cluster, shard);
         const { data: responseData } = await axios.delete(
             `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards/${shard}`
         );
-        console.log(responseData);
         if (responseData.data == null) {
             return "";
         } else {
