@@ -58,7 +58,7 @@ export async function deleteNamespace(name: string): Promise<string> {
         const { data: responseData } = await axios.delete(
             `${apiHost}/namespaces/${name}`
         );
-        if (responseData?.data == "ok") {
+        if (responseData.data == null) {
             return "";
         } else {
             return handleError(responseData);
@@ -125,7 +125,7 @@ export async function deleteCluster(
         const { data: responseData } = await axios.delete(
             `${apiHost}/namespaces/${namespace}/clusters/${cluster}`
         );
-        if (responseData?.data == "ok") {
+        if (responseData.data == null) {
             return "";
         } else {
             return handleError(responseData);
