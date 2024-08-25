@@ -146,7 +146,7 @@ export async function createShard(
             `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards`,
             { nodes, password }
         );
-        if (responseData?.data === "created") {
+        if (responseData?.data != undefined) {
             return "";
         } else {
             return handleError(responseData);
@@ -198,7 +198,7 @@ export async function deleteShard(
             `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards/${shard}`
         );
         console.log(responseData);
-        if (responseData?.data == "ok") {
+        if (responseData.data == null) {
             return "";
         } else {
             return handleError(responseData);
