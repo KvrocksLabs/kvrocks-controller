@@ -17,12 +17,12 @@
  * under the License.
  */
 
-'use client';
+"use client";
 
 import { Divider, List, Typography } from "@mui/material";
-import { fetchClusters, fetchNamespaces } from "@/app/lib/api";
+import { fetchClusters, fetchNamespaces, listShards } from "@/app/lib/api";
 import Item from "./sidebarItem";
-import { ClusterCreation, NamespaceCreation } from "./formCreation";
+import { ClusterCreation, NamespaceCreation, ShardCreation } from "./formCreation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
@@ -48,7 +48,11 @@ export function NamespaceSidebar() {
                 <div className="mt-2 mb-4 text-center">
                     <NamespaceCreation position="sidebar" />
                 </div>
-                {error && <Typography color="error" align="center">{error}</Typography>}
+                {error && (
+                    <Typography color="error" align="center">
+                        {error}
+                    </Typography>
+                )}
                 {namespaces.map((namespace) => (
                     <div key={namespace}>
                         <Divider />
@@ -86,12 +90,73 @@ export function ClusterSidebar({ namespace }: { namespace: string }) {
                 <div className="mt-2 mb-4 text-center">
                     <ClusterCreation namespace={namespace} position="sidebar" />
                 </div>
-                {error && <Typography color="error" align="center">{error}</Typography>}
+                {error && (
+                    <Typography color="error" align="center">
+                        {error}
+                    </Typography>
+                )}
                 {clusters.map((cluster) => (
                     <div key={cluster}>
                         <Divider />
-                        <Link href={`/namespaces/${namespace}/clusters/${cluster}`} passHref>
+                        <Link
+                            href={`/namespaces/${namespace}/clusters/${cluster}`}
+                            passHref
+                        >
                             <Item type="cluster" item={cluster} namespace={namespace} />
+                        </Link>
+                    </div>
+                ))}
+                <Divider />
+            </List>
+            <Divider orientation="vertical" flexItem />
+        </div>
+    );
+}
+
+export function ShardSidebar({
+    namespace,
+    cluster,
+}: {
+  namespace: string;
+  cluster: string;
+}) {
+    const [shards, setShards] = useState<string[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const fetchedShards = await listShards(namespace, cluster);
+                const shardsIndex = fetchedShards.map(
+                    (shard, index) => "Shard\t" + (index+1).toString()
+                );
+                setShards(shardsIndex);
+            } catch (err) {
+                setError("Failed to fetch shards");
+            }
+        };
+        fetchData();
+    }, [namespace, cluster]);
+
+    return (
+        <div className="w-60 h-full flex">
+            <List className="w-full overflow-y-auto">
+                <div className="mt-2 mb-4 text-center">
+                    <ShardCreation namespace={namespace} cluster={cluster} position="sidebar" />
+                </div>
+                {error && (
+                    <Typography color="error" align="center">
+                        {error}
+                    </Typography>
+                )}
+                {shards.map((shard,index) => (
+                    <div key={shard}>
+                        <Divider />
+                        <Link
+                            href={`/namespaces/${namespace}/clusters/${cluster}/shards/${index}`}
+                            passHref
+                        >
+                            <Item type="shard" item={shard} namespace={namespace} cluster={cluster} />
                         </Link>
                     </div>
                 ))}

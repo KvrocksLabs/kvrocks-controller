@@ -19,9 +19,9 @@
 
 "use client";
 
-import { Card } from "@mui/material";
+import { Card, Box } from "@mui/material";
 import React, { ReactNode } from "react";
-import { ClusterCreation } from "./formCreation";
+import { ClusterCreation, ShardCreation } from "./formCreation";
 import { faCirclePlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -31,35 +31,37 @@ interface CreateCardProps {
 
 export const CreateCard: React.FC<CreateCardProps> = ({ children }) => {
     return (
-        <Card
-            variant="outlined"
-            sx={{
-                width: "300px",
-                height: "200px",
-                padding: "16px",
-                margin: "16px",
-                borderRadius: "16px",
-                transition: "transform 0.1s, box-shadow 0.3s",
-                boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
-                "&:hover": {
-                    transform: "scale(1.01)",
-                    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
-                },
-                cursor: "pointer",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-            }}
-        >
-            {children}
-        </Card>
+        <Box sx={{ position: "relative", display: "inline-block" }}>
+            <Card
+                variant="outlined"
+                sx={{
+                    width: "300px",
+                    height: "200px",
+                    padding: "16px",
+                    margin: "16px",
+                    borderRadius: "16px",
+                    transition: "transform 0.1s, box-shadow 0.3s",
+                    boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+                    "&:hover": {
+                        transform: "scale(1.01)",
+                        boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)",
+                    },
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                }}
+            >
+                {children}
+            </Card>
+        </Box>
     );
 };
 
-export const AddClusterCardProps = ({ namespace }: { namespace: string }) => {
+export const AddClusterCard = ({ namespace }: { namespace: string }) => {
     return (
-        <>
+        <CreateCard>
             <FontAwesomeIcon
                 icon={faCirclePlus}
                 size="4x"
@@ -72,6 +74,31 @@ export const AddClusterCardProps = ({ namespace }: { namespace: string }) => {
             <div className="mt-4">
                 <ClusterCreation position="card" namespace={namespace} />
             </div>
-        </>
+        </CreateCard>
+    );
+};
+
+export const AddShardCard = ({
+    namespace,
+    cluster,
+}: {
+  namespace: string;
+  cluster: string;
+}) => {
+    return (
+        <CreateCard>
+            <FontAwesomeIcon
+                icon={faCirclePlus}
+                size="4x"
+                style={{
+                    color: "#e0e0e0",
+                    marginBottom: "8px",
+                    transition: "color 0.2s",
+                }}
+            />
+            <div className="mt-4">
+                <ShardCreation position="card" namespace={namespace} cluster={cluster} />
+            </div>
+        </CreateCard>
     );
 };

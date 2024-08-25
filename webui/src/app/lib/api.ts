@@ -135,6 +135,79 @@ export async function deleteCluster(
     }
 }
 
+export async function createShard(
+    namespace: string,
+    cluster: string,
+    nodes: string[],
+    password: string
+): Promise<string> {
+    try {
+        const { data: responseData } = await axios.post(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards`,
+            { nodes, password }
+        );
+        if (responseData?.data === "created") {
+            return "";
+        } else {
+            return handleError(responseData);
+        }
+    } catch (error) {
+        return handleError(error);
+    }
+}
+
+export async function fetchShard(
+    namespace: string,
+    cluster: string,
+    shard: string
+): Promise<Object> {
+    try {
+        const { data: responseData } = await axios.get(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards/${shard}`
+        );
+        return responseData.data.shard;
+    } catch (error) {
+        handleError(error);
+        return {};
+    }
+}
+
+export async function listShards(
+    namespace: string,
+    cluster: string
+): Promise<Object[]> {
+    try {
+        const { data: responseData } = await axios.get(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards`
+        );
+        return responseData.data.shards || [];
+    } catch (error) {
+        handleError(error);
+        return [];
+    }
+}
+
+export async function deleteShard(
+    namespace: string,
+    cluster: string,
+    shard: string
+): Promise<string> {
+    try {
+        console.log("Deleting shard", namespace, cluster, shard);
+        const { data: responseData } = await axios.delete(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards/${shard}`
+        );
+        console.log(responseData);
+        if (responseData?.data == "ok") {
+            return "";
+        } else {
+            return handleError(responseData);
+        }
+    } catch (error) {
+        return handleError(error);
+    }
+}
+
 function handleError(error: any): string {
     let message: string = "";
     if (error instanceof AxiosError) {

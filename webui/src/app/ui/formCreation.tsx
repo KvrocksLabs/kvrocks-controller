@@ -20,7 +20,7 @@
 "use client";
 import React from "react";
 import FormDialog from "./formDialog";
-import { createCluster, createNamespace } from "../lib/api";
+import { createCluster, createNamespace, createShard } from "../lib/api";
 import { useRouter } from "next/navigation";
 
 type NamespaceFormProps = {
@@ -31,6 +31,12 @@ type ClusterFormProps = {
   position: string;
   namespace: string;
 };
+
+type ShardFormProps = {
+    position: string;
+    namespace: string;
+    cluster: string;
+    };
 
 const containsWhitespace = (value: string): boolean => /\s/.test(value);
 
@@ -59,8 +65,9 @@ export const NamespaceCreation: React.FC<NamespaceFormProps> = ({
         const response = await createNamespace(formObj["name"] as string);
         if (response === "") {
             router.push(`/namespaces/${formObj["name"]}`);
+        }else{
+            return "Invalid form data";
         }
-        return "Invalid form data";
     };
 
     return (
@@ -109,9 +116,9 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
         );
         if (response === "") {
             router.push(`/namespaces/${namespace}/clusters/${formObj["name"]}`);
-            return;
+        }else{
+            return "Invalid form data";
         }
-        return "Invalid form data";
     };
 
     return (
@@ -134,6 +141,56 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
                     type: "text",
                     required: true,
                 },
+            ]}
+            onSubmit={handleSubmit}
+        />
+    );
+};
+
+
+export const ShardCreation: React.FC<ShardFormProps> = ({
+    position,
+    namespace,
+    cluster,
+}) => {
+    const router = useRouter();
+    const handleSubmit = async (formData: FormData) => {
+        const fieldsToValidate = ["nodes", "password"];
+        const errorMessage = validateFormData(formData, fieldsToValidate);
+        if (errorMessage) {
+            return errorMessage;
+        }
+
+        const formObj = Object.fromEntries(formData.entries());
+        const nodes = JSON.parse(formObj["nodes"] as string) as string[];
+        const password = formObj["password"] as string;
+
+        if (nodes.length === 0) {
+            return "Nodes cannot be empty.";
+        }
+
+        for (const node of nodes) {
+            if (containsWhitespace(node)) {
+                return "Nodes cannot contain any whitespace characters.";
+            }
+        }
+
+        const response = await createShard(namespace, cluster, nodes, password);
+        if (response === "") {
+            router.push(`/namespaces/${namespace}/clusters/${cluster}`);
+        }else{
+            return "Invalid form data";
+        }
+    };
+
+    return (
+        <FormDialog
+            position={position}
+            title="Create Shard"
+            submitButtonLabel="Create"
+            formFields={[
+                { name: "nodes", label: "Input Nodes", type: "array", required: true },
+                { name: "password", label: "Input Password", type: "text", required: true },
             ]}
             onSubmit={handleSubmit}
         />
