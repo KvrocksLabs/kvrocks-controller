@@ -15,7 +15,7 @@ Apache Kvrocks Controller is a cluster management tool for [Apache Kvrocks](http
 
 * Go >= 1.16
 
-### Build binaries 
+### Build binaries
 
 ```shell
 $ git clone https://github.com/apache/kvrocks-controller
@@ -27,12 +27,12 @@ $ make # You can find the binary file in the `_build` dir if all goes good
 ```
 ### Overview
 ![image](docs/images/overview.png)
-For the storage, the ETCD is used as the default storage now. Welcome to contribute other storages like MySQL, Redis, Consul and so on. And what you need to do is to implement the [persistence interface](https://github.com/apache/kvrocks-controller/blob/unstable/storage/persistence/persistence.go).
+For the storage, the ETCD is used as the default storage now. Welcome to contribute other storages like MySQL, Redis, Consul and so on. And what you need to do is to implement the [Engine interface](https://github.com/apache/kvrocks-controller/blob/unstable/store/engine/engine.go).
 
-### 1. Run the controller server 
+### 1. Run the controller server
 
 ```shell
-# Use docker-compose to setup the etcd
+# Use docker-compose to setup the etcd or zookeeper
 $ make setup
 # Run the controller server
 $ ./_build/kvctl-server -c config/config.yaml
@@ -51,7 +51,7 @@ $ ./_build/kvctl create namespace test-ns
 # List namespaces
 $ ./_build/kvctl list namespaces
 
-# Create cluster in the namespace 
+# Create cluster in the namespace
 $ ./_build/kvctl create cluster test-cluster --nodes 127.0.0.1:6666,127.0.0.1:6667 -n test-ns
 
 # List clusters in the namespace
@@ -65,3 +65,7 @@ $ ./_build/kvctl migrate slot 123 --target 1 -n test-ns -c test-cluster
 ```
 
 For the HTTP API, you can find the [HTTP API(work in progress)](docs/API.md) for more details.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE)
