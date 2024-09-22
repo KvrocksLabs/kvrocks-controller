@@ -17,10 +17,41 @@
  * under the License.
  */
 
-import { Box, Container, Card } from "@mui/material";
+"use client";
+
+import { Box, Container, Card, Link, Typography } from "@mui/material";
 import { NamespaceSidebar } from "../ui/sidebar";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { fetchNamespaces } from "../lib/api";
+import { LoadingSpinner } from "../ui/loadingSpinner";
+import { CreateCard } from "../ui/createCard";
 
 export default function Namespace() {
+    const [namespaces, setNamespaces] = useState<string[]>([]);
+    const [loading, setLoading] = useState<boolean>(true);
+    const router = useRouter();
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const fetchedNamespaces = await fetchNamespaces();
+
+                setNamespaces(fetchedNamespaces);
+            } catch (error) {
+                console.error("Error fetching namespaces:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [router]);
+
+    if (loading) {
+        return <LoadingSpinner />;
+    }
+
     return (
         <div className="flex h-full">
             <NamespaceSidebar />
@@ -29,10 +60,17 @@ export default function Namespace() {
                 disableGutters
                 sx={{ height: "100%", overflowY: "auto", marginLeft: "16px" }}
             >
-                <div>
-                    <Box className="flex">
-                        This is the namespace page.
-                    </Box>
+                <div className="flex flex-row flex-wrap">
+                    {namespaces.map(
+                        (namespace, index) =>
+                            namespace && (
+                                <Link key={namespace} href={`/namespaces/${namespace}`}>
+                                    <CreateCard>
+                                        <Typography variant="h6">{namespace} Namespace</Typography>
+                                    </CreateCard>
+                                </Link>
+                            )
+                    )}
                 </div>
             </Container>
         </div>

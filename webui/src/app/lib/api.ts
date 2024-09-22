@@ -135,6 +135,54 @@ export async function deleteCluster(
     }
 }
 
+export async function importCluster(
+    namespace: string,
+    cluster: string,
+    nodes: string[],
+    password: string
+): Promise<string> {
+    try {
+        const { data: responseData } = await axios.post(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/import`,
+            { nodes, password }
+        );
+        console.log("importCluster response", responseData);
+        if (responseData?.data != undefined) {
+            return "";
+        } else {
+            return handleError(responseData);
+        }
+    } catch (error) {
+        return handleError(error);
+    }
+}
+
+export async function migrateSlot(
+    namespace: string,
+    cluster: string,
+    target: number,
+    slot: number,
+    slotOnly: boolean
+): Promise<string> {
+    try {
+        const { data: responseData } = await axios.post(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/migrate`,
+            {
+                target: target,
+                slot: slot,
+                slot_only: slotOnly,
+            }
+        );
+        if (responseData?.data != undefined) {
+            return "";
+        } else {
+            return handleError(responseData);
+        }
+    } catch (error) {
+        return handleError(error);
+    }
+}
+
 export async function createShard(
     namespace: string,
     cluster: string,
@@ -261,7 +309,7 @@ export async function deleteNode(
             return handleError(responseData);
         }
     } catch (error) {
-        console.log(error)
+        console.log(error);
         return handleError(error);
     }
 }

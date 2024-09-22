@@ -24,7 +24,7 @@ import { ShardSidebar } from "@/app/ui/sidebar";
 import { fetchShard } from "@/app/lib/api";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { AddShardCard, CreateCard } from "@/app/ui/createCard";
+import { AddNodeCard, AddShardCard, CreateCard } from "@/app/ui/createCard";
 import Link from "next/link";
 import { LoadingSpinner } from "@/app/ui/loadingSpinner";
 import { truncateText } from "@/app/utils";
@@ -72,7 +72,7 @@ export default function Shard({
                 sx={{ height: "100%", overflowY: "auto", marginLeft: "16px" }}
             >
                 <div className="flex flex-row flex-wrap">
-                    <AddShardCard namespace={namespace} cluster={cluster} />
+                    <AddNodeCard namespace={namespace} cluster={cluster} shard={shard} />
                     {nodesData.nodes.map(
                         (node: any, index: number) => (
                             <Link

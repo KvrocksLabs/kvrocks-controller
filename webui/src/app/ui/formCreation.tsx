@@ -25,6 +25,8 @@ import {
     createNamespace,
     createNode,
     createShard,
+    importCluster,
+    migrateSlot,
 } from "../lib/api";
 import { useRouter } from "next/navigation";
 
@@ -217,6 +219,121 @@ export const ShardCreation: React.FC<ShardFormProps> = ({
     );
 };
 
+export const ImportCluster: React.FC<ShardFormProps> = ({
+    position,
+    namespace,
+    cluster,
+}) => {
+    const router = useRouter();
+    const handleSubmit = async (formData: FormData) => {
+        const fieldsToValidate = ["nodes", "password"];
+        const errorMessage = validateFormData(formData, fieldsToValidate);
+        if (errorMessage) {
+            return errorMessage;
+        }
+
+        const formObj = Object.fromEntries(formData.entries());
+        const nodes = JSON.parse(formObj["nodes"] as string) as string[];
+        const password = formObj["password"] as string;
+
+        if (nodes.length === 0) {
+            return "Nodes cannot be empty.";
+        }
+
+        for (const node of nodes) {
+            if (containsWhitespace(node)) {
+                return "Nodes cannot contain any whitespace characters.";
+            }
+        }
+
+        const response = await importCluster(namespace, cluster, nodes, password);
+        if (response === "") {
+            router.push(`/namespaces/${namespace}/clusters/${cluster}`);
+        } else {
+            return "Invalid form data";
+        }
+    };
+
+    return (
+        <FormDialog
+            position={position}
+            title="Import Cluster"
+            submitButtonLabel="Import"
+            formFields={[
+                { name: "nodes", label: "Input Nodes", type: "array", required: true },
+                {
+                    name: "password",
+                    label: "Input Password",
+                    type: "password",
+                    required: true,
+                },
+            ]}
+            onSubmit={handleSubmit}
+        />
+    );
+};
+
+export const MigrateSlot: React.FC<ShardFormProps> = ({
+    position,
+    namespace,
+    cluster,
+}) => {
+    //     POST /api/v1/namespaces/{namespace}/clusters/{cluster}/migrate
+    // Request Body
+    // {
+    //   "target": 1,
+    //   "slot": 123,
+    //   "slot_only": "false"
+    // }
+
+    const router = useRouter();
+    const handleSubmit = async (formData: FormData) => {
+        const fieldsToValidate = ["target", "slot", "slot_only"];
+        const errorMessage = validateFormData(formData, fieldsToValidate);
+        if (errorMessage) {
+            return errorMessage;
+        }
+
+        const formObj = Object.fromEntries(formData.entries());
+        const target = parseInt(formObj["target"] as string);
+        const slot = parseInt(formObj["slot"] as string);
+        const slotOnly = formObj["slot_only"] === "true";
+
+        const response = await migrateSlot(
+            namespace,
+            cluster,
+            target,
+            slot,
+            slotOnly
+        );
+        if (response === "") {
+            router.push(`/namespaces/${namespace}/clusters/${cluster}`);
+        } else {
+            return "Invalid form data";
+        }
+    };
+
+    return (
+        <FormDialog
+            position={position}
+            title="Migrate Slot"
+            submitButtonLabel="Migrate"
+            formFields={[
+                { name: "target", label: "Input Target", type: "text", required: true },
+                { name: "slot", label: "Input Slot", type: "text", required: true },
+                {
+                    name: "slot_only",
+                    label: "Slot Only",
+                    type: "enum",
+                    values: ["true", "false"],
+                    required: true,
+                },
+            ]}
+            onSubmit={handleSubmit}
+        />
+    );
+};
+
 export const NodeCreation: React.FC<NodeFormProps> = ({
     position,
     namespace,
@@ -224,24 +341,24 @@ export const NodeCreation: React.FC<NodeFormProps> = ({
     shard,
 }) => {
     const router = useRouter();
-  
+
     const handleSubmit = async (formData: FormData) => {
         const fieldsToValidate = ["Address", "Role", "Password"];
         const errorMessage = validateFormData(formData, fieldsToValidate);
         if (errorMessage) {
             return errorMessage;
         }
-  
+
         const formObj = Object.fromEntries(formData.entries());
         const address = formObj["Address"] as string;
         const role = formObj["Role"] as string;
         console.log(role);
         const password = formObj["Password"] as string;
-  
+
         if (containsWhitespace(address)) {
             return "Address cannot contain any whitespace characters.";
         }
-  
+
         const response = await createNode(
             namespace,
             cluster,
@@ -258,7 +375,7 @@ export const NodeCreation: React.FC<NodeFormProps> = ({
             return "Invalid form data";
         }
     };
-  
+
     return (
         <FormDialog
             position={position}
