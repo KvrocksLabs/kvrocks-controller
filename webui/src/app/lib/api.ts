@@ -206,6 +206,66 @@ export async function deleteShard(
     }
 }
 
+export async function createNode(
+    namespace: string,
+    cluster: string,
+    shard: string,
+    addr: string,
+    role: string,
+    password: string
+): Promise<string> {
+    try {
+        const { data: responseData } = await axios.post(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards/${shard}/nodes`,
+            { addr, role, password }
+        );
+        if (responseData?.data == null) {
+            return "";
+        } else {
+            return handleError(responseData);
+        }
+    } catch (error) {
+        return handleError(error);
+    }
+}
+
+export async function listNodes(
+    namespace: string,
+    cluster: string,
+    shard: string
+): Promise<Object[]> {
+    try {
+        const { data: responseData } = await axios.get(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards/${shard}/nodes`
+        );
+        return responseData.data.nodes || [];
+    } catch (error) {
+        handleError(error);
+        return [];
+    }
+}
+
+export async function deleteNode(
+    namespace: string,
+    cluster: string,
+    shard: string,
+    nodeId: string
+): Promise<string> {
+    try {
+        const { data: responseData } = await axios.delete(
+            `${apiHost}/namespaces/${namespace}/clusters/${cluster}/shards/${shard}/nodes/${nodeId}`
+        );
+        if (responseData.data == null) {
+            return "";
+        } else {
+            return handleError(responseData);
+        }
+    } catch (error) {
+        console.log(error)
+        return handleError(error);
+    }
+}
+
 function handleError(error: any): string {
     let message: string = "";
     if (error instanceof AxiosError) {

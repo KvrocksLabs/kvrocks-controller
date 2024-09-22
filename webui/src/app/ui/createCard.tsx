@@ -21,7 +21,7 @@
 
 import { Card, Box } from "@mui/material";
 import React, { ReactNode } from "react";
-import { ClusterCreation, ShardCreation } from "./formCreation";
+import { ClusterCreation, NodeCreation, ShardCreation } from "./formCreation";
 import { faCirclePlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -102,3 +102,31 @@ export const AddShardCard = ({
         </CreateCard>
     );
 };
+
+
+export const AddNodeCard = ({
+    namespace,
+    cluster,
+    shard,
+}: {
+    namespace: string;
+    cluster: string;
+    shard: string;
+}) => {
+    return (
+        <CreateCard>
+            <FontAwesomeIcon
+                icon={faCirclePlus}
+                size="4x"
+                style={{
+                    color: "#e0e0e0",
+                    marginBottom: "8px",
+                    transition: "color 0.2s",
+                }}
+            />
+            <div className="mt-4">
+                <NodeCreation position="card" namespace={namespace} cluster={cluster} shard={shard} />
+            </div>
+        </CreateCard>
+    );
+}

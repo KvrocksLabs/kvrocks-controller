@@ -29,23 +29,28 @@ import {
     Box,
     Chip,
     Typography,
-    Autocomplete
+    Autocomplete,
+    MenuItem,
+    Select,
+    InputLabel,
+    FormControl,
 } from "@mui/material";
 import React, { useCallback, useState, FormEvent } from "react";
-
-interface FormDialogProps {
+  
+  interface FormDialogProps {
     position: string;
     title: string;
     submitButtonLabel: string;
     formFields: {
-        name: string;
-        label: string;
-        type: string;
-        required?: boolean;
+      name: string;
+      label: string;
+      type: string;
+      required?: boolean;
+      values?: string[];
     }[];
     onSubmit: (formData: FormData) => Promise<string | undefined>;
-}
-
+  }
+  
 const FormDialog: React.FC<FormDialogProps> = ({
     position,
     title,
@@ -58,19 +63,19 @@ const FormDialog: React.FC<FormDialogProps> = ({
     const closeDialog = useCallback(() => setShowDialog(false), []);
     const [errorMessage, setErrorMessage] = useState("");
     const [arrayValues, setArrayValues] = useState<{ [key: string]: string[] }>({});
-
+  
     const handleArrayChange = (name: string, value: string[]) => {
         setArrayValues({ ...arrayValues, [name]: value });
     };
-
+  
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const formData = new FormData(event.currentTarget);
-
-        Object.keys(arrayValues).forEach(name => {
+  
+        Object.keys(arrayValues).forEach((name) => {
             formData.append(name, JSON.stringify(arrayValues[name]));
         });
-
+  
         const error = await onSubmit(formData);
         if (error) {
             setErrorMessage(error);
@@ -78,7 +83,7 @@ const FormDialog: React.FC<FormDialogProps> = ({
             closeDialog();
         }
     };
-
+  
     return (
         <>
             {position === "card" ? (
@@ -90,26 +95,30 @@ const FormDialog: React.FC<FormDialogProps> = ({
                     {title}
                 </Button>
             )}
-
+  
             <Dialog open={showDialog} onClose={closeDialog}>
                 <form onSubmit={handleSubmit}>
                     <DialogTitle>{title}</DialogTitle>
                     <DialogContent sx={{ width: "500px" }}>
-                        {formFields.map((field, index) => (
-                            field.type === 'array' ? (
+                        {formFields.map((field, index) =>
+                            field.type === "array" ? (
                                 <Box key={index} mb={2}>
-                                    <Typography variant="subtitle1" className="mt-2 mb-2">{field.label}</Typography>
+                                    <Typography variant="subtitle1" className="mt-2 mb-2">
+                                        {field.label}
+                                    </Typography>
                                     <Autocomplete
                                         multiple
                                         freeSolo
                                         value={arrayValues[field.name] || []}
                                         options={[]}
-                                        onChange={(event, newValue) => handleArrayChange(field.name, newValue)}
+                                        onChange={(event, newValue) =>
+                                            handleArrayChange(field.name, newValue)
+                                        }
                                         renderTags={(value, getTagProps) =>
                                             value.map((option, index) => (
                                                 <Chip
                                                     {...getTagProps({ index })}
-                                                    key={index} 
+                                                    key={index}
                                                     label={option}
                                                 />
                                             ))
@@ -124,6 +133,23 @@ const FormDialog: React.FC<FormDialogProps> = ({
                                         )}
                                     />
                                 </Box>
+                            ) : field.type === "enum" ? (
+                                <FormControl key={index} fullWidth sx={{ mt:3 }}>
+                                    <InputLabel>{field.label}</InputLabel>
+                                    <Select
+                                        name={field.name}
+                                        label={field.label}
+                                        required={field.required}
+                                        defaultValue=""
+                                        multiple={false}
+                                    >
+                                        {field.values?.map((value, index) => (
+                                            <MenuItem key={index} value={value}>
+                                                {value}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
                             ) : (
                                 <TextField
                                     key={index}
@@ -138,7 +164,7 @@ const FormDialog: React.FC<FormDialogProps> = ({
                                     sx={{ mb: 2 }}
                                 />
                             )
-                        ))}
+                        )}
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={closeDialog}>Cancel</Button>
@@ -164,5 +190,6 @@ const FormDialog: React.FC<FormDialogProps> = ({
         </>
     );
 };
-
+  
 export default FormDialog;
+  

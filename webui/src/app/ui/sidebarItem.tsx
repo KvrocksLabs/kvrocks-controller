@@ -39,7 +39,12 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { deleteCluster, deleteNamespace, deleteShard } from "../lib/api";
+import {
+    deleteCluster,
+    deleteNamespace,
+    deleteNode,
+    deleteShard,
+} from "../lib/api";
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -61,7 +66,20 @@ interface ShardItemProps {
   cluster: string;
 }
 
-type ItemProps = NamespaceItemProps | ClusterItemProps | ShardItemProps;
+interface NodeItemProps {
+  item: string;
+  type: "node";
+  namespace: string;
+  cluster: string;
+  shard: string;
+  id: string;
+}
+
+type ItemProps =
+  | NamespaceItemProps
+  | ClusterItemProps
+  | ShardItemProps
+  | NodeItemProps;
 
 export default function Item(props: ItemProps) {
     const { item, type } = props;
@@ -88,10 +106,10 @@ export default function Item(props: ItemProps) {
     let activeItem = usePathname().split("/").pop() || "";
 
     const confirmDelete = useCallback(async () => {
-        let response="";
+        let response = "";
         if (type === "namespace") {
             response = await deleteNamespace(item);
-            if (response ===""){
+            if (response === "") {
                 router.push("/namespaces");
             }
             setErrorMessage(response);
@@ -99,16 +117,30 @@ export default function Item(props: ItemProps) {
         } else if (type === "cluster") {
             const { namespace } = props as ClusterItemProps;
             response = await deleteCluster(namespace, item);
-            if (response ===""){
+            if (response === "") {
                 router.push(`/namespaces/${namespace}`);
             }
             setErrorMessage(response);
             router.refresh();
         } else if (type === "shard") {
             const { namespace, cluster } = props as ShardItemProps;
-            response = await deleteShard(namespace, cluster, (parseInt(item.split("\t")[1])-1).toString());
-            if (response ===""){
+            response = await deleteShard(
+                namespace,
+                cluster,
+                (parseInt(item.split("\t")[1]) - 1).toString()
+            );
+            if (response === "") {
                 router.push(`/namespaces/${namespace}/clusters/${cluster}`);
+            }
+            setErrorMessage(response);
+            router.refresh();
+        } else if (type === "node") {
+            const { namespace, cluster, shard, id } = props as NodeItemProps;
+            response = await deleteNode(namespace, cluster, shard, id);
+            if (response === "") {
+                router.push(
+                    `/namespaces/${namespace}/clusters/${cluster}/shards/${shard}`
+                );
             }
             setErrorMessage(response);
             router.refresh();
@@ -165,9 +197,19 @@ export default function Item(props: ItemProps) {
             <Dialog open={showDeleteConfirm}>
                 <DialogTitle>Confirm</DialogTitle>
                 <DialogContent>
-                    <DialogContentText>
-            Please confirm you want to delete {type} {item}
-                    </DialogContentText>
+                    {type === "node" ? (
+                        <DialogContentText>
+              Please confirm you want to delete {item}
+                        </DialogContentText>
+                    ) : type === "shard" ? (
+                        <DialogContentText>
+              Please confirm you want to delete {item}
+                        </DialogContentText>
+                    ) : (
+                        <DialogContentText>
+              Please confirm you want to delete {type} {item}
+                        </DialogContentText>
+                    )}
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={closeDeleteConfirmDialog}>Cancel</Button>

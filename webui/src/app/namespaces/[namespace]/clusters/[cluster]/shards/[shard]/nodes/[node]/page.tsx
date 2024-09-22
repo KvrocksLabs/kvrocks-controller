@@ -17,21 +17,102 @@
  * under the License.
  */
 
-import { Box, Container, Card, Alert, Snackbar } from "@mui/material";
+"use client";
 
-export default function Node() {
-    
+import { listNodes } from "@/app/lib/api";
+import { NodeSidebar } from "@/app/ui/sidebar";
+import {
+    Box,
+    Container,
+    Card,
+    Alert,
+    Snackbar,
+    Typography,
+    Tooltip,
+} from "@mui/material";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { LoadingSpinner } from "@/app/ui/loadingSpinner";
+import { AddNodeCard, CreateCard } from "@/app/ui/createCard";
+import { truncateText } from "@/app/utils";
+
+export default function Node({
+    params,
+}: {
+  params: { namespace: string; cluster: string; shard: string; node: string };
+}) {
+    const { namespace, cluster, shard, node } = params;
+    const router = useRouter();
+    const [nodeData, setNodeData] = useState<any>(null);
+    const [loading, setLoading] = useState<boolean>(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const fetchedNodes = await listNodes(namespace, cluster, shard);
+                if (!fetchedNodes) {
+                    console.error(`Shard ${shard} not found`);
+                    router.push("/404");
+                    return;
+                }
+                setNodeData(fetchedNodes);
+            } catch (error) {
+                console.error("Error fetching shard data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, [namespace, cluster, shard, router]);
+
+    if (loading) {
+        return <LoadingSpinner />;
+    }
+
     return (
         <div className="flex h-full">
+            <NodeSidebar namespace={namespace} cluster={cluster} shard={shard} />
             <Container
                 maxWidth={false}
                 disableGutters
                 sx={{ height: "100%", overflowY: "auto", marginLeft: "16px" }}
             >
-                <div>
-                    <Box className="flex">
-                        This is the nodes page.
-                    </Box>
+                <div className="flex flex-row flex-wrap">
+                    {nodeData.map((nodeObj: any, index: number) =>
+                        index === Number(node) ? (
+                            <>
+                                <CreateCard>
+                                    <Typography variant="h6" gutterBottom>
+                    Node {index + 1}
+                                    </Typography>
+                                    <Tooltip title={nodeObj.id}>
+                                        <Typography
+                                            variant="body2"
+                                            gutterBottom
+                                            sx={{
+                                                whiteSpace: "nowrap",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                            }}
+                                        >
+                      ID: {truncateText(nodeObj.id, 20)}
+                                        </Typography>
+                                    </Tooltip>
+                                    <Typography variant="body2" gutterBottom>
+                    Address: {nodeObj.addr}
+                                    </Typography>
+                                    <Typography variant="body2" gutterBottom>
+                    Role: {nodeObj.role}
+                                    </Typography>
+                                    <Typography variant="body2" gutterBottom>
+                    Created At:{" "}
+                                        {new Date(nodeObj.created_at * 1000).toLocaleString()}
+                                    </Typography>
+                                </CreateCard>
+                            </>
+                        ) : null
+                    )}
                 </div>
             </Container>
         </div>

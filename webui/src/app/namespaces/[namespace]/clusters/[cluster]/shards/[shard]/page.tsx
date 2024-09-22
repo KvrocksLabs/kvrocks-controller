@@ -27,10 +27,7 @@ import { useState, useEffect } from "react";
 import { AddShardCard, CreateCard } from "@/app/ui/createCard";
 import Link from "next/link";
 import { LoadingSpinner } from "@/app/ui/loadingSpinner";
-
-const truncateText = (text: string, limit: number) => {
-    return text.length > limit ? `${text.slice(0, limit)}...` : text;
-};
+import { truncateText } from "@/app/utils";
 
 export default function Shard({
     params,

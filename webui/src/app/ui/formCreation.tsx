@@ -20,7 +20,12 @@
 "use client";
 import React from "react";
 import FormDialog from "./formDialog";
-import { createCluster, createNamespace, createShard } from "../lib/api";
+import {
+    createCluster,
+    createNamespace,
+    createNode,
+    createShard,
+} from "../lib/api";
 import { useRouter } from "next/navigation";
 
 type NamespaceFormProps = {
@@ -33,18 +38,30 @@ type ClusterFormProps = {
 };
 
 type ShardFormProps = {
-    position: string;
-    namespace: string;
-    cluster: string;
-    };
+  position: string;
+  namespace: string;
+  cluster: string;
+};
+
+type NodeFormProps = {
+  position: string;
+  namespace: string;
+  cluster: string;
+  shard: string;
+};
 
 const containsWhitespace = (value: string): boolean => /\s/.test(value);
 
-const validateFormData = (formData: FormData, fields: string[]): string | null => {
+const validateFormData = (
+    formData: FormData,
+    fields: string[]
+): string | null => {
     for (const field of fields) {
         const value = formData.get(field);
         if (typeof value === "string" && containsWhitespace(value)) {
-            return `${field.charAt(0).toUpperCase() + field.slice(1)} cannot contain any whitespace characters.`;
+            return `${
+                field.charAt(0).toUpperCase() + field.slice(1)
+            } cannot contain any whitespace characters.`;
         }
     }
     return null;
@@ -65,7 +82,7 @@ export const NamespaceCreation: React.FC<NamespaceFormProps> = ({
         const response = await createNamespace(formObj["name"] as string);
         if (response === "") {
             router.push(`/namespaces/${formObj["name"]}`);
-        }else{
+        } else {
             return "Invalid form data";
         }
     };
@@ -89,7 +106,6 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
 }) => {
     const router = useRouter();
     const handleSubmit = async (formData: FormData) => {
-        
         const fieldsToValidate = ["name", "replicas", "password"];
         const errorMessage = validateFormData(formData, fieldsToValidate);
         if (errorMessage) {
@@ -108,15 +124,15 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
         }
 
         const response = await createCluster(
-            formObj["name"] as string,
-            nodes,
-            parseInt(formObj["replicas"] as string),
-            formObj["password"] as string,
-            namespace
+      formObj["name"] as string,
+      nodes,
+      parseInt(formObj["replicas"] as string),
+      formObj["password"] as string,
+      namespace
         );
         if (response === "") {
             router.push(`/namespaces/${namespace}/clusters/${formObj["name"]}`);
-        }else{
+        } else {
             return "Invalid form data";
         }
     };
@@ -138,7 +154,7 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
                 {
                     name: "password",
                     label: "Input Password",
-                    type: "text",
+                    type: "password",
                     required: true,
                 },
             ]}
@@ -146,7 +162,6 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
         />
     );
 };
-
 
 export const ShardCreation: React.FC<ShardFormProps> = ({
     position,
@@ -178,7 +193,7 @@ export const ShardCreation: React.FC<ShardFormProps> = ({
         const response = await createShard(namespace, cluster, nodes, password);
         if (response === "") {
             router.push(`/namespaces/${namespace}/clusters/${cluster}`);
-        }else{
+        } else {
             return "Invalid form data";
         }
     };
@@ -190,7 +205,85 @@ export const ShardCreation: React.FC<ShardFormProps> = ({
             submitButtonLabel="Create"
             formFields={[
                 { name: "nodes", label: "Input Nodes", type: "array", required: true },
-                { name: "password", label: "Input Password", type: "text", required: true },
+                {
+                    name: "password",
+                    label: "Input Password",
+                    type: "password",
+                    required: true,
+                },
+            ]}
+            onSubmit={handleSubmit}
+        />
+    );
+};
+
+export const NodeCreation: React.FC<NodeFormProps> = ({
+    position,
+    namespace,
+    cluster,
+    shard,
+}) => {
+    const router = useRouter();
+  
+    const handleSubmit = async (formData: FormData) => {
+        const fieldsToValidate = ["Address", "Role", "Password"];
+        const errorMessage = validateFormData(formData, fieldsToValidate);
+        if (errorMessage) {
+            return errorMessage;
+        }
+  
+        const formObj = Object.fromEntries(formData.entries());
+        const address = formObj["Address"] as string;
+        const role = formObj["Role"] as string;
+        console.log(role);
+        const password = formObj["Password"] as string;
+  
+        if (containsWhitespace(address)) {
+            return "Address cannot contain any whitespace characters.";
+        }
+  
+        const response = await createNode(
+            namespace,
+            cluster,
+            shard,
+            address,
+            role,
+            password
+        );
+        if (response === "") {
+            router.push(
+                `/namespaces/${namespace}/clusters/${cluster}/shards/${shard}`
+            );
+        } else {
+            return "Invalid form data";
+        }
+    };
+  
+    return (
+        <FormDialog
+            position={position}
+            title="Create Node"
+            submitButtonLabel="Create"
+            formFields={[
+                {
+                    name: "Address",
+                    label: "Input Address",
+                    type: "text",
+                    required: true,
+                },
+                {
+                    name: "Role",
+                    label: "Select Role",
+                    type: "enum",
+                    required: true,
+                    values: ["master", "slave"],
+                },
+                {
+                    name: "Password",
+                    label: "Input Password",
+                    type: "password",
+                    required: true,
+                },
             ]}
             onSubmit={handleSubmit}
         />

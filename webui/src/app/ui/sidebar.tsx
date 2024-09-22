@@ -20,9 +20,19 @@
 "use client";
 
 import { Divider, List, Typography } from "@mui/material";
-import { fetchClusters, fetchNamespaces, listShards } from "@/app/lib/api";
+import {
+    fetchClusters,
+    fetchNamespaces,
+    listNodes,
+    listShards,
+} from "@/app/lib/api";
 import Item from "./sidebarItem";
-import { ClusterCreation, NamespaceCreation, ShardCreation } from "./formCreation";
+import {
+    ClusterCreation,
+    NamespaceCreation,
+    NodeCreation,
+    ShardCreation,
+} from "./formCreation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
@@ -128,7 +138,7 @@ export function ShardSidebar({
             try {
                 const fetchedShards = await listShards(namespace, cluster);
                 const shardsIndex = fetchedShards.map(
-                    (shard, index) => "Shard\t" + (index+1).toString()
+                    (shard, index) => "Shard\t" + (index + 1).toString()
                 );
                 setShards(shardsIndex);
             } catch (err) {
@@ -142,21 +152,109 @@ export function ShardSidebar({
         <div className="w-60 h-full flex">
             <List className="w-full overflow-y-auto">
                 <div className="mt-2 mb-4 text-center">
-                    <ShardCreation namespace={namespace} cluster={cluster} position="sidebar" />
+                    <ShardCreation
+                        namespace={namespace}
+                        cluster={cluster}
+                        position="sidebar"
+                    />
                 </div>
                 {error && (
                     <Typography color="error" align="center">
                         {error}
                     </Typography>
                 )}
-                {shards.map((shard,index) => (
+                {shards.map((shard, index) => (
                     <div key={shard}>
                         <Divider />
                         <Link
                             href={`/namespaces/${namespace}/clusters/${cluster}/shards/${index}`}
                             passHref
                         >
-                            <Item type="shard" item={shard} namespace={namespace} cluster={cluster} />
+                            <Item
+                                type="shard"
+                                item={shard}
+                                namespace={namespace}
+                                cluster={cluster}
+                            />
+                        </Link>
+                    </div>
+                ))}
+                <Divider />
+            </List>
+            <Divider orientation="vertical" flexItem />
+        </div>
+    );
+}
+interface NodeItem {
+  addr: string;
+  created_at: number;
+  id: string;
+  password: string;
+  role: string;
+}
+
+export function NodeSidebar({
+    namespace,
+    cluster,
+    shard,
+}: {
+  namespace: string;
+  cluster: string;
+  shard: string;
+}) {
+    const [nodes, setNodes] = useState<NodeItem[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const fetchedNodes = (await listNodes(
+                    namespace,
+                    cluster,
+                    shard
+                )) as NodeItem[];
+                console.log(fetchedNodes);
+                setNodes(fetchedNodes);
+                console.log(nodes);
+            } catch (err) {
+                setError("Failed to fetch nodes");
+            }
+        };
+        fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [namespace, cluster, shard]);
+
+    return (
+        <div className="w-60 h-full flex">
+            <List className="w-full overflow-y-auto">
+                <div className="mt-2 mb-4 text-center">
+                    <NodeCreation
+                        namespace={namespace}
+                        cluster={cluster}
+                        shard={shard}
+                        position="sidebar"
+                    />
+                </div>
+                {error && (
+                    <Typography color="error" align="center">
+                        {error}
+                    </Typography>
+                )}
+                {nodes.map((node, index) => (
+                    <div key={index}>
+                        <Divider />
+                        <Link
+                            href={`/namespaces/${namespace}/clusters/${cluster}/shards/${shard}/nodes/${index}`}
+                            passHref
+                        >
+                            <Item
+                                type="node"
+                                item={"Node " + (index + 1).toString()}
+                                id={node.id}
+                                namespace={namespace}
+                                cluster={cluster}
+                                shard={shard}
+                            />
                         </Link>
                     </div>
                 ))}
