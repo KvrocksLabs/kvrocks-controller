@@ -13,7 +13,7 @@ Apache Kvrocks Controller is a cluster management tool for [Apache Kvrocks](http
 
 ### Requirements
 
-* Go >= 1.16
+* Go >= 1.19
 
 ### Build binaries
 
