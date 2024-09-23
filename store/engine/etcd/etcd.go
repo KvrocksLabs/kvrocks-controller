@@ -22,10 +22,11 @@ package etcd
 import (
 	"context"
 	"errors"
-	"github.com/apache/kvrocks-controller/consts"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/apache/kvrocks-controller/consts"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"

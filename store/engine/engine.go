@@ -21,10 +21,6 @@ package engine
 
 import (
 	"context"
-	"strings"
-	"sync"
-
-	"github.com/apache/kvrocks-controller/consts"
 )
 
 type Entry struct {
@@ -46,94 +42,3 @@ type Engine interface {
 
 	Close() error
 }
-
-type Mock struct {
-	mu     sync.Mutex
-	values map[string]string
-}
-
-func NewMock() *Mock {
-	return &Mock{
-		values: make(map[string]string),
-	}
-}
-
-func (m *Mock) Get(ctx context.Context, key string) ([]byte, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	v, ok := m.values[key]
-	if !ok {
-		return nil, consts.ErrNotFound
-	}
-	return []byte(v), nil
-}
-
-func (m *Mock) Exists(ctx context.Context, key string) (bool, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	_, ok := m.values[key]
-	return ok, nil
-}
-
-func (m *Mock) Set(ctx context.Context, key string, value []byte) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.values[key] = string(value)
-	return nil
-}
-
-func (m *Mock) Delete(ctx context.Context, key string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.values, key)
-	return nil
-}
-
-func (m *Mock) List(ctx context.Context, prefix string) ([]Entry, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	exists := make(map[string]bool, 0)
-	var entries []Entry
-	for k, v := range m.values {
-		if strings.HasPrefix(k, prefix) {
-			k = strings.Trim(strings.TrimPrefix(k, prefix), "/")
-			fields := strings.SplitN(k, "/", 2)
-			if len(fields) == 2 {
-				// only list the first level
-				k = fields[0]
-			}
-			if _, ok := exists[k]; ok {
-				continue
-			}
-			exists[k] = true
-			entries = append(entries, Entry{
-				Key:   k,
-				Value: []byte(v),
-			})
-		}
-	}
-	return entries, nil
-}
-
-func (m *Mock) Close() error {
-	return nil
-}
-
-func (m *Mock) ID() string {
-	return "mock_store_engine"
-}
-
-func (m *Mock) Leader() string {
-	return "mock_store_engine"
-}
-
-func (m *Mock) LeaderChange() <-chan bool {
-	return make(chan bool)
-}
-
-func (m *Mock) IsReady(ctx context.Context) bool {
-	return true
-}
-
-var _ Engine = (*Mock)(nil)
