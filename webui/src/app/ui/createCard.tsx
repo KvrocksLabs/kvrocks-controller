@@ -82,10 +82,7 @@ export const AddClusterCard = ({ namespace }: { namespace: string }) => {
                     <ClusterCreation position="card" namespace={namespace} />
                 </div>
                 <div className="ml-.5">
-                    <ImportCluster
-                        position="card"
-                        namespace={namespace}
-                    />
+                    <ImportCluster position="card" namespace={namespace} />
                 </div>
             </div>
         </CreateCard>
@@ -110,12 +107,21 @@ export const AddShardCard = ({
                     transition: "color 0.2s",
                 }}
             />
-            <div className="mt-4">
-                <ShardCreation
-                    position="card"
-                    namespace={namespace}
-                    cluster={cluster}
-                />
+            <div className="mt-4  flex flex-row items-end">
+                <div className="mr-0.5">
+                    <ShardCreation
+                        position="card"
+                        namespace={namespace}
+                        cluster={cluster}
+                    />
+                </div>
+                <div className="ml-.5">
+                    <MigrateSlot
+                        position="card"
+                        namespace={namespace}
+                        cluster={cluster}
+                    />
+                </div>
             </div>
         </CreateCard>
     );
@@ -141,22 +147,13 @@ export const AddNodeCard = ({
                     transition: "color 0.2s",
                 }}
             />
-            <div className="mt-4 flex flex-row items-end ">
-                <div className="mr-0.5">
-                    <NodeCreation
-                        position="card"
-                        namespace={namespace}
-                        cluster={cluster}
-                        shard={shard}
-                    />
-                </div>
-                <div className="ml-.5">
-                    <MigrateSlot
-                        position="card"
-                        namespace={namespace}
-                        cluster={cluster}
-                    />
-                </div>
+            <div className="mt-4">
+                <NodeCreation
+                    position="card"
+                    namespace={namespace}
+                    cluster={cluster}
+                    shard={shard}
+                />
             </div>
         </CreateCard>
     );

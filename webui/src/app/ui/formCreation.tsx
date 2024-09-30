@@ -281,14 +281,6 @@ export const MigrateSlot: React.FC<ShardFormProps> = ({
     namespace,
     cluster,
 }) => {
-    //     POST /api/v1/namespaces/{namespace}/clusters/{cluster}/migrate
-    // Request Body
-    // {
-    //   "target": 1,
-    //   "slot": 123,
-    //   "slot_only": "false"
-    // }
-
     const router = useRouter();
     const handleSubmit = async (formData: FormData) => {
         const fieldsToValidate = ["target", "slot", "slot_only"];
@@ -310,7 +302,7 @@ export const MigrateSlot: React.FC<ShardFormProps> = ({
             slotOnly
         );
         if (response === "") {
-            router.push(`/namespaces/${namespace}/clusters/${cluster}`);
+            window.location.reload();
         } else {
             return "Invalid form data";
         }
