@@ -347,7 +347,6 @@ export const NodeCreation: React.FC<NodeFormProps> = ({
         const formObj = Object.fromEntries(formData.entries());
         const address = formObj["Address"] as string;
         const role = formObj["Role"] as string;
-        console.log(role);
         const password = formObj["Password"] as string;
 
         if (containsWhitespace(address)) {
@@ -363,9 +362,7 @@ export const NodeCreation: React.FC<NodeFormProps> = ({
             password
         );
         if (response === "") {
-            router.push(
-                `/namespaces/${namespace}/clusters/${cluster}/shards/${shard}`
-            );
+            window.location.reload();
         } else {
             return "Invalid form data";
         }

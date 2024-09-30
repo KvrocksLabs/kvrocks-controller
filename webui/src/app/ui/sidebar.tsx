@@ -213,9 +213,7 @@ export function NodeSidebar({
                     cluster,
                     shard
                 )) as NodeItem[];
-                console.log(fetchedNodes);
                 setNodes(fetchedNodes);
-                console.log(nodes);
             } catch (err) {
                 setError("Failed to fetch nodes");
             }
@@ -249,7 +247,7 @@ export function NodeSidebar({
                         >
                             <Item
                                 type="node"
-                                item={"Node " + (index + 1).toString()}
+                                item={"Node\t" + (index + 1).toString()}
                                 id={node.id}
                                 namespace={namespace}
                                 cluster={cluster}

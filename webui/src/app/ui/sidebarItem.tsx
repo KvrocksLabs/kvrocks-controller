@@ -150,6 +150,8 @@ export default function Item(props: ItemProps) {
 
     if (type === "shard") {
         activeItem = "Shard\t" + (parseInt(activeItem) + 1);
+    }else if (type === "node") {
+        activeItem = "Node\t" + (parseInt(activeItem) + 1);
     }
     const isActive = item === activeItem;
 
