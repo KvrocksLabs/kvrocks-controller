@@ -41,7 +41,7 @@ export const CreateCard: React.FC<CreateCardProps> = ({ children }) => {
             <Card
                 variant="outlined"
                 sx={{
-                    width: "350px",
+                    width: "370px",
                     height: "200px",
                     padding: "16px",
                     margin: "16px",
@@ -77,8 +77,16 @@ export const AddClusterCard = ({ namespace }: { namespace: string }) => {
                     transition: "color 0.2s",
                 }}
             />
-            <div className="mt-4">
-                <ClusterCreation position="card" namespace={namespace} />
+            <div className="mt-4 flex flex-row items-end ">
+                <div className="mr-0.5">
+                    <ClusterCreation position="card" namespace={namespace} />
+                </div>
+                <div className="ml-.5">
+                    <ImportCluster
+                        position="card"
+                        namespace={namespace}
+                    />
+                </div>
             </div>
         </CreateCard>
     );
@@ -102,21 +110,12 @@ export const AddShardCard = ({
                     transition: "color 0.2s",
                 }}
             />
-            <div className="mt-4 flex flex-row items-end ">
-                <div className="mr-0.5">
-                    <ShardCreation
-                        position="card"
-                        namespace={namespace}
-                        cluster={cluster}
-                    />
-                </div>
-                <div className="ml-.5">
-                    <ImportCluster
-                        position="card"
-                        namespace={namespace}
-                        cluster={cluster}
-                    />
-                </div>
+            <div className="mt-4">
+                <ShardCreation
+                    position="card"
+                    namespace={namespace}
+                    cluster={cluster}
+                />
             </div>
         </CreateCard>
     );

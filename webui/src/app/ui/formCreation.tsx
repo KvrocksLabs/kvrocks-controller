@@ -108,7 +108,7 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
 }) => {
     const router = useRouter();
     const handleSubmit = async (formData: FormData) => {
-        const fieldsToValidate = ["name", "replicas", "password"];
+        const fieldsToValidate = ["name", "replicas"];
         const errorMessage = validateFormData(formData, fieldsToValidate);
         if (errorMessage) {
             return errorMessage;
@@ -157,7 +157,6 @@ export const ClusterCreation: React.FC<ClusterFormProps> = ({
                     name: "password",
                     label: "Input Password",
                     type: "password",
-                    required: true,
                 },
             ]}
             onSubmit={handleSubmit}
@@ -172,7 +171,7 @@ export const ShardCreation: React.FC<ShardFormProps> = ({
 }) => {
     const router = useRouter();
     const handleSubmit = async (formData: FormData) => {
-        const fieldsToValidate = ["nodes", "password"];
+        const fieldsToValidate = ["nodes"];
         const errorMessage = validateFormData(formData, fieldsToValidate);
         if (errorMessage) {
             return errorMessage;
@@ -211,7 +210,6 @@ export const ShardCreation: React.FC<ShardFormProps> = ({
                     name: "password",
                     label: "Input Password",
                     type: "password",
-                    required: true,
                 },
             ]}
             onSubmit={handleSubmit}
@@ -219,14 +217,13 @@ export const ShardCreation: React.FC<ShardFormProps> = ({
     );
 };
 
-export const ImportCluster: React.FC<ShardFormProps> = ({
+export const ImportCluster: React.FC<ClusterFormProps> = ({
     position,
     namespace,
-    cluster,
 }) => {
     const router = useRouter();
     const handleSubmit = async (formData: FormData) => {
-        const fieldsToValidate = ["nodes", "password"];
+        const fieldsToValidate = ["nodes"];
         const errorMessage = validateFormData(formData, fieldsToValidate);
         if (errorMessage) {
             return errorMessage;
@@ -234,6 +231,7 @@ export const ImportCluster: React.FC<ShardFormProps> = ({
 
         const formObj = Object.fromEntries(formData.entries());
         const nodes = JSON.parse(formObj["nodes"] as string) as string[];
+        const cluster = formObj["cluster"] as string;
         const password = formObj["password"] as string;
 
         if (nodes.length === 0) {
@@ -260,12 +258,17 @@ export const ImportCluster: React.FC<ShardFormProps> = ({
             title="Import Cluster"
             submitButtonLabel="Import"
             formFields={[
+                {
+                    name: "cluster",
+                    label: "Input Cluster",
+                    type: "text",
+                    required: true,
+                },
                 { name: "nodes", label: "Input Nodes", type: "array", required: true },
                 {
                     name: "password",
                     label: "Input Password",
                     type: "password",
-                    required: true,
                 },
             ]}
             onSubmit={handleSubmit}
@@ -343,7 +346,7 @@ export const NodeCreation: React.FC<NodeFormProps> = ({
     const router = useRouter();
 
     const handleSubmit = async (formData: FormData) => {
-        const fieldsToValidate = ["Address", "Role", "Password"];
+        const fieldsToValidate = ["Address", "Role"];
         const errorMessage = validateFormData(formData, fieldsToValidate);
         if (errorMessage) {
             return errorMessage;
@@ -399,7 +402,6 @@ export const NodeCreation: React.FC<NodeFormProps> = ({
                     name: "Password",
                     label: "Input Password",
                     type: "password",
-                    required: true,
                 },
             ]}
             onSubmit={handleSubmit}

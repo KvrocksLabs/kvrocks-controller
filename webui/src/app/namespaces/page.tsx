@@ -61,15 +61,25 @@ export default function Namespace() {
                 sx={{ height: "100%", overflowY: "auto", marginLeft: "16px" }}
             >
                 <div className="flex flex-row flex-wrap">
-                    {namespaces.map(
-                        (namespace, index) =>
-                            namespace && (
-                                <Link key={namespace} href={`/namespaces/${namespace}`}>
-                                    <CreateCard>
-                                        <Typography variant="h6">{namespace} Namespace</Typography>
-                                    </CreateCard>
-                                </Link>
-                            )
+                    {namespaces.length !== 0 ? (
+                        namespaces.map(
+                            (namespace, index) =>
+                                namespace && (
+                                    <Link key={namespace} href={`/namespaces/${namespace}`}>
+                                        <CreateCard>
+                                            <Typography variant="h6">
+                                                {namespace} Namespace
+                                            </Typography>
+                                        </CreateCard>
+                                    </Link>
+                                )
+                        )
+                    ) : (
+                        <Box>
+                            <Typography variant="h6">
+                No namespaces found, create one to get started
+                            </Typography>
+                        </Box>
                     )}
                 </div>
             </Container>
