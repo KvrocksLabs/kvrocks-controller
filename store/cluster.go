@@ -164,7 +164,7 @@ func (cluster *Cluster) Reset(ctx context.Context) error {
 }
 
 func (cluster *Cluster) findShardIndexBySlot(slot int) (int, error) {
-	if slot < 0 || slot >= MaxSlotID {
+	if slot < 0 || slot > MaxSlotID {
 		return -1, consts.ErrSlotOutOfRange
 	}
 	sourceShardIdx := -1
