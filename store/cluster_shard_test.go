@@ -43,11 +43,14 @@ func TestShard_Sort(t *testing.T) {
 	shard1.SlotRanges = []SlotRange{{Start: 0, Stop: 400}}
 	shard2 := NewShard()
 	shard2.SlotRanges = []SlotRange{{Start: 101, Stop: 500}}
-	shards := Shards{shard0, shard1, shard2}
+	shard3 := NewShard()
+	shard3.SlotRanges = []SlotRange{}
+	shards := Shards{shard0, shard1, shard2, shard3}
 	sort.Sort(shards)
 	require.EqualValues(t, 0, shards[0].SlotRanges[0].Start)
 	require.EqualValues(t, 101, shards[1].SlotRanges[0].Start)
 	require.EqualValues(t, 201, shards[2].SlotRanges[0].Start)
+	require.EqualValues(t, 0, len(shards[3].SlotRanges))
 }
 
 func TestShard_IsServicing(t *testing.T) {

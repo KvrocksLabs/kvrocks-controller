@@ -272,12 +272,8 @@ func ParseCluster(clusterStr string) (*Cluster, error) {
 		}
 
 		if node.role == RoleMaster {
-			if len(fields) < 9 {
-				return nil, fmt.Errorf("master node element less 9, node info[%q]", nodeString)
-			}
 			shard := NewShard()
 			shard.Nodes = append(shard.Nodes, node)
-
 			// remain fields are slot ranges
 			for i := 8; i < len(fields); i++ {
 				slotRange, err := ParseSlotRange(fields[i])

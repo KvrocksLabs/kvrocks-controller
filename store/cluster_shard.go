@@ -49,6 +49,11 @@ func (s Shards) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 func (s Shards) Less(i, j int) bool {
+	if len(s[i].SlotRanges) == 0 {
+		return false
+	} else if len(s[j].SlotRanges) == 0 {
+		return true
+	}
 	return s[i].SlotRanges[0].Start < s[j].SlotRanges[0].Start
 }
 
