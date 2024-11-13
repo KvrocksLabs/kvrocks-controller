@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/store/engine"
@@ -51,6 +52,7 @@ var _ Store = (*ClusterStore)(nil)
 type ClusterStore struct {
 	e engine.Engine
 
+	locks         sync.Map
 	eventNotifyCh chan EventPayload
 	quitCh        chan struct{}
 }
@@ -124,6 +126,11 @@ func (s *ClusterStore) RemoveNamespace(ctx context.Context, ns string) error {
 	return nil
 }
 
+func (s *ClusterStore) getLock(ns, cluster string) *sync.RWMutex {
+	l, _ := s.locks.LoadOrStore(fmt.Sprintf("%s/%s", ns, cluster), &sync.RWMutex{})
+	return l.(*sync.RWMutex)
+}
+
 // ListCluster return the list of name of cluster under the specified namespace
 func (s *ClusterStore) ListCluster(ctx context.Context, ns string) ([]string, error) {
 	entries, err := s.e.List(ctx, buildClusterPrefix(ns))
@@ -142,6 +149,14 @@ func (s *ClusterStore) existsCluster(ctx context.Context, ns, cluster string) (b
 }
 
 func (s *ClusterStore) GetCluster(ctx context.Context, ns, cluster string) (*Cluster, error) {
+	lock := s.getLock(ns, cluster)
+	lock.RLock()
+	defer lock.RUnlock()
+
+	return s.getClusterWithoutLock(ctx, ns, cluster)
+}
+
+func (s *ClusterStore) getClusterWithoutLock(ctx context.Context, ns, cluster string) (*Cluster, error) {
 	value, err := s.e.Get(ctx, buildClusterKey(ns, cluster))
 	if err != nil {
 		return nil, fmt.Errorf("cluster: %w", err)
@@ -155,10 +170,27 @@ func (s *ClusterStore) GetCluster(ctx context.Context, ns, cluster string) (*Clu
 
 // UpdateCluster update the Name to store under the specified namespace
 func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
+	lock := s.getLock(ns, clusterInfo.Name)
+	lock.Lock()
+	defer lock.Unlock()
+
+	oldCluster, err := s.getClusterWithoutLock(ctx, ns, clusterInfo.Name)
+	if err != nil {
+		return err
+	}
+	if oldCluster.Version.Load() != clusterInfo.Version.Load() {
+		return fmt.Errorf("the cluster has been updated by others")
+	}
+
 	clusterInfo.Version.Inc()
-	if err := s.SetCluster(ctx, ns, clusterInfo); err != nil {
+	clusterBytes, err := json.Marshal(clusterInfo)
+	if err != nil {
 		return fmt.Errorf("cluster: %w", err)
 	}
+	if err := s.e.Set(ctx, buildClusterKey(ns, clusterInfo.Name), clusterBytes); err != nil {
+		return err
+	}
+
 	s.EmitEvent(EventPayload{
 		Namespace: ns,
 		Cluster:   clusterInfo.Name,
@@ -168,10 +200,20 @@ func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo
 	return nil
 }
 
+// SetCluster set the cluster to store under the specified namespace but won't increase the version.
 func (s *ClusterStore) SetCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
-	if len(clusterInfo.Shards) == 0 {
-		return fmt.Errorf("%w: required at least one shard", consts.ErrInvalidArgument)
+	lock := s.getLock(ns, clusterInfo.Name)
+	lock.Lock()
+	defer lock.Unlock()
+
+	oldCluster, err := s.getClusterWithoutLock(ctx, ns, clusterInfo.Name)
+	if err != nil {
+		return err
 	}
+	if oldCluster.Version.Load() != clusterInfo.Version.Load() {
+		return fmt.Errorf("the cluster has been updated by others")
+	}
+
 	value, err := json.Marshal(clusterInfo)
 	if err != nil {
 		return fmt.Errorf("cluster: %w", err)
@@ -180,10 +222,18 @@ func (s *ClusterStore) SetCluster(ctx context.Context, ns string, clusterInfo *C
 }
 
 func (s *ClusterStore) CreateCluster(ctx context.Context, ns string, clusterInfo *Cluster) error {
+	lock := s.getLock(ns, clusterInfo.Name)
+	lock.Lock()
+	defer lock.Unlock()
+
 	if exists, _ := s.existsCluster(ctx, ns, clusterInfo.Name); exists {
 		return fmt.Errorf("cluster: %w", consts.ErrAlreadyExists)
 	}
-	if err := s.SetCluster(ctx, ns, clusterInfo); err != nil {
+	clusterBytes, err := json.Marshal(clusterInfo)
+	if err != nil {
+		return fmt.Errorf("cluster: %w", err)
+	}
+	if err := s.e.Set(ctx, buildClusterKey(ns, clusterInfo.Name), clusterBytes); err != nil {
 		return err
 	}
 	s.EmitEvent(EventPayload{
@@ -196,12 +246,17 @@ func (s *ClusterStore) CreateCluster(ctx context.Context, ns string, clusterInfo
 }
 
 func (s *ClusterStore) RemoveCluster(ctx context.Context, ns, cluster string) error {
+	lock := s.getLock(ns, cluster)
+	lock.Lock()
+	defer lock.Unlock()
+
 	if exists, _ := s.existsCluster(ctx, ns, cluster); !exists {
 		return consts.ErrNotFound
 	}
 	if err := s.e.Delete(ctx, buildClusterKey(ns, cluster)); err != nil {
 		return err
 	}
+
 	s.EmitEvent(EventPayload{
 		Namespace: ns,
 		Cluster:   cluster,

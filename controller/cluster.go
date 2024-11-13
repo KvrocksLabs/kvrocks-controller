@@ -305,7 +305,7 @@ func (c *ClusterChecker) tryUpdateMigrationStatus(ctx context.Context, cluster *
 			cluster.Shards[shard.TargetShardIndex].SlotRanges = store.AddSlotToSlotRanges(
 				cluster.Shards[shard.TargetShardIndex].SlotRanges, shard.MigratingSlot)
 			cluster.Shards[i].ClearMigrateState()
-			if err := c.clusterStore.SetCluster(ctx, c.namespace, cluster); err != nil {
+			if err := c.clusterStore.UpdateCluster(ctx, c.namespace, cluster); err != nil {
 				log.Error("Failed to update the cluster", zap.Error(err))
 			} else {
 				log.Info("Migrate the slot successfully", zap.Int("slot", shard.MigratingSlot))

@@ -81,12 +81,11 @@ func TestClusterStore(t *testing.T) {
 		require.NoError(t, err)
 		require.ElementsMatch(t, []string{"cluster0", "cluster1"}, gotClusters)
 
-		cluster0.Version.Store(4)
 		require.NoError(t, store.UpdateCluster(ctx, ns, cluster0))
 		gotCluster, err = store.GetCluster(ctx, ns, "cluster0")
 		require.NoError(t, err)
 		require.Equal(t, cluster0.Name, gotCluster.Name)
-		require.Equal(t, cluster0.Version, gotCluster.Version)
+		require.EqualValues(t, 3, gotCluster.Version.Load())
 
 		for _, name := range []string{"cluster0", "cluster1"} {
 			require.NoError(t, store.RemoveCluster(ctx, ns, name))
