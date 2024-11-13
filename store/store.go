@@ -127,8 +127,9 @@ func (s *ClusterStore) RemoveNamespace(ctx context.Context, ns string) error {
 }
 
 func (s *ClusterStore) getLock(ns, cluster string) *sync.RWMutex {
-	l, _ := s.locks.LoadOrStore(fmt.Sprintf("%s/%s", ns, cluster), &sync.RWMutex{})
-	return l.(*sync.RWMutex)
+	value, _ := s.locks.LoadOrStore(fmt.Sprintf("%s/%s", ns, cluster), &sync.RWMutex{})
+	lock, _ := value.(*sync.RWMutex)
+	return lock
 }
 
 // ListCluster return the list of name of cluster under the specified namespace
