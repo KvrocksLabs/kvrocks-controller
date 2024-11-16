@@ -32,7 +32,7 @@ for TARGET_NAME in "$SERVER_TARGET_NAME" "$CLIENT_TARGET_NAME"; do
         CMD_PATH="${GO_PROJECT}/cmd/client"
     fi
 
-    GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" CGO_ENABLED=0 go build -v -ldflags \
+    CGO_ENABLED=0 go build -v -ldflags \
         "-X $GO_PROJECT/version.Version=$VERSION" \
         -o ${TARGET_NAME} ${CMD_PATH}
 
@@ -41,7 +41,7 @@ for TARGET_NAME in "$SERVER_TARGET_NAME" "$CLIENT_TARGET_NAME"; do
         exit 1
     fi
 
-    echo "Build $TARGET_NAME, OS is $TARGET_OS, Arch is $TARGET_ARCH"
+    echo "Build $TARGET_NAME successfully"
 done
 
 rm -rf ${BUILD_DIR}
