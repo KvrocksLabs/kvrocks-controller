@@ -17,28 +17,30 @@
  * under the License.
  *
  */
-package engine
+
+package raft
 
 import (
 	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
-type Entry struct {
-	Key   string `json:"key"`
-	Value []byte `json:"value"`
-}
+func TestNode_Validate(t *testing.T) {
+	n, err := New(&Config{
+		ID:    1,
+		Peers: []string{"http://127.0.0.1:1234"},
+		Join:  false,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, n)
+	defer n.Close()
 
-type Engine interface {
-	ID() string
-	Leader() string
-	LeaderChange() <-chan bool
-	IsReady(ctx context.Context) bool
-
-	Get(ctx context.Context, key string) ([]byte, error)
-	Exists(ctx context.Context, key string) (bool, error)
-	Set(ctx context.Context, key string, value []byte) error
-	Delete(ctx context.Context, key string) error
-	List(ctx context.Context, prefix string) ([]Entry, error)
-
-	Close() error
+	require.NoError(t, n.Set(context.Background(), "foo", []byte("bar")))
+	time.Sleep(100 * time.Millisecond)
+	gotBytes, err := n.Get(context.Background(), "foo")
+	require.NoError(t, err)
+	require.Equal(t, []byte("bar"), gotBytes)
 }

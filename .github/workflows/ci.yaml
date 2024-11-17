@@ -27,7 +27,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19
+          go-version: 1.22
 
       - name: Checkout Code Base
         uses: actions/checkout@v3
@@ -50,7 +50,7 @@ jobs:
         run: |
           export GOPATH=$HOME/go
           export PATH=$PATH:$GOPATH/bin
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.2
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.62.0
           make lint
 
   build-test:
@@ -58,7 +58,7 @@ jobs:
     needs: [lint]
     strategy:
       matrix:
-        go-version: [1.19, oldstable, stable]
+        go-version: [1.22, stable]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:

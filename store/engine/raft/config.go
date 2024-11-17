@@ -17,28 +17,43 @@
  * under the License.
  *
  */
-package engine
 
-import (
-	"context"
-)
+package raft
 
-type Entry struct {
-	Key   string `json:"key"`
-	Value []byte `json:"value"`
+import "errors"
+
+type Config struct {
+	// ID is the identity of the local raft. ID cannot be 0.
+	ID uint64
+	// DataDir is the directory to store the raft data which includes snapshot and WALs.
+	DataDir string
+	// Join should be set to true if the node is joining an existing cluster.
+	Join bool
+
+	// Peers is the list of raft peers.
+	Peers            []string
+	HeartbeatSeconds int
+	ElectionSeconds  int
 }
 
-type Engine interface {
-	ID() string
-	Leader() string
-	LeaderChange() <-chan bool
-	IsReady(ctx context.Context) bool
+func (c *Config) validate() error {
+	if c.ID == 0 {
+		return errors.New("ID cannot be 0")
+	}
+	if len(c.Peers) == 0 {
+		return errors.New("peers cannot be empty")
+	}
+	return nil
+}
 
-	Get(ctx context.Context, key string) ([]byte, error)
-	Exists(ctx context.Context, key string) (bool, error)
-	Set(ctx context.Context, key string, value []byte) error
-	Delete(ctx context.Context, key string) error
-	List(ctx context.Context, prefix string) ([]Entry, error)
-
-	Close() error
+func (c *Config) init() {
+	if c.DataDir == "" {
+		c.DataDir = "."
+	}
+	if c.HeartbeatSeconds == 0 {
+		c.HeartbeatSeconds = 2
+	}
+	if c.ElectionSeconds == 0 {
+		c.ElectionSeconds = c.HeartbeatSeconds * 10
+	}
 }
