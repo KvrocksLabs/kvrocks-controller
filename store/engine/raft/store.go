@@ -28,6 +28,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/apache/kvrocks-controller/logger"
 	"github.com/apache/kvrocks-controller/store/engine"
 
 	"go.etcd.io/etcd/pkg/fileutil"
@@ -36,8 +37,6 @@ import (
 	"go.etcd.io/etcd/server/v3/etcdserver/api/snap"
 	"go.etcd.io/etcd/server/v3/wal"
 	"go.etcd.io/etcd/server/v3/wal/walpb"
-
-	"github.com/apache/kvrocks-controller/logger"
 )
 
 var ErrKeyNotFound = errors.New("key not found")

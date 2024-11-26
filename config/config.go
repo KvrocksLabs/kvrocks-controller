@@ -26,6 +26,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/apache/kvrocks-controller/store/engine/raft"
+
 	"github.com/go-playground/validator/v10"
 
 	"github.com/apache/kvrocks-controller/logger"
@@ -53,6 +55,7 @@ type Config struct {
 	StorageType string            `yaml:"storage_type"`
 	Etcd        *etcd.Config      `yaml:"etcd"`
 	Zookeeper   *zookeeper.Config `yaml:"zookeeper"`
+	Raft        *raft.Config      `yaml:"raft"`
 	Admin       AdminConfig       `yaml:"admin"`
 	Controller  *ControllerConfig `yaml:"controller"`
 }

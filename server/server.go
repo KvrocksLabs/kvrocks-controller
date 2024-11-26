@@ -28,6 +28,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apache/kvrocks-controller/store/engine/raft"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/apache/kvrocks-controller/config"
@@ -53,13 +55,17 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	var err error
 
 	sessionID := helper.GenerateSessionID(cfg.Addr)
-	switch {
-	case strings.EqualFold(cfg.StorageType, "etcd"):
+	storageType := strings.ToLower(cfg.StorageType)
+	switch storageType {
+	case "etcd":
 		logger.Get().Info("Use Etcd as store")
 		persist, err = etcd.New(sessionID, cfg.Etcd)
-	case strings.EqualFold(cfg.StorageType, "zookeeper"):
+	case "zookeeper":
 		logger.Get().Info("Use Zookeeper as store")
 		persist, err = zookeeper.New(sessionID, cfg.Zookeeper)
+	case "raft":
+		logger.Get().Info("Use Raft as store")
+		persist, err = raft.New(cfg.Raft)
 	default:
 		logger.Get().Info("Use Etcd as default store")
 		persist, err = etcd.New(sessionID, cfg.Etcd)

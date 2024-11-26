@@ -43,6 +43,9 @@ func (c *Config) validate() error {
 	if len(c.Peers) == 0 {
 		return errors.New("peers cannot be empty")
 	}
+	if c.ID > uint64(len(c.Peers)) {
+		return errors.New("ID cannot be greater than the number of peers")
+	}
 	return nil
 }
 

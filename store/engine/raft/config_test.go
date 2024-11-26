@@ -21,26 +21,39 @@
 package raft
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestNode_Validate(t *testing.T) {
-	n, err := New(&Config{
-		ID:    1,
-		Peers: []string{"http://127.0.0.1:1234"},
-		Join:  false,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, n)
-	defer n.Close()
+func TestConfig_Validate(t *testing.T) {
+	c := &Config{}
 
-	require.NoError(t, n.Set(context.Background(), "foo", []byte("bar")))
-	time.Sleep(100 * time.Millisecond)
-	gotBytes, err := n.Get(context.Background(), "foo")
-	require.NoError(t, err)
-	require.Equal(t, []byte("bar"), gotBytes)
+	// missing ID
+	require.ErrorContains(t, c.validate(), "ID cannot be 0")
+	// missing peers
+	c.ID = 1
+	require.ErrorContains(t, c.validate(), "peers cannot be empty")
+	// valid
+	c.Peers = []string{"http://127.0.0.1:12345"}
+	require.NoError(t, c.validate())
+	// ID greater than the number of peers
+	c.ID = 2
+	require.ErrorContains(t, c.validate(), "ID cannot be greater than the number of peers")
+}
+
+func TestConfig_Init(t *testing.T) {
+	c := &Config{}
+	c.init()
+	require.Equal(t, ".", c.DataDir)
+	require.Equal(t, 2, c.HeartbeatSeconds)
+	require.Equal(t, 20, c.ElectionSeconds)
+
+	c.DataDir = "/tmp"
+	c.HeartbeatSeconds = 3
+	c.ElectionSeconds = 30
+	c.init()
+	require.Equal(t, "/tmp", c.DataDir)
+	require.Equal(t, 3, c.HeartbeatSeconds)
+	require.Equal(t, 30, c.ElectionSeconds)
 }
