@@ -40,7 +40,7 @@ import (
 
 const (
 	sessionTTL         = 6
-	defaultDailTimeout = 5 * time.Second
+	defaultDialTimeout = 5 * time.Second
 )
 
 const defaultElectPath = "/kvrocks/controller/leader"
@@ -81,7 +81,7 @@ func New(id string, cfg *Config) (*Etcd, error) {
 
 	clientConfig := clientv3.Config{
 		Endpoints:   cfg.Addrs,
-		DialTimeout: defaultDailTimeout,
+		DialTimeout: defaultDialTimeout,
 		Logger:      logger.Get(),
 	}
 
