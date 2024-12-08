@@ -90,7 +90,6 @@ type Node struct {
 var _ engine.Engine = (*Node)(nil)
 
 func New(config *Config) (*Node, error) {
-	config.init()
 	if err := config.validate(); err != nil {
 		return nil, err
 	}

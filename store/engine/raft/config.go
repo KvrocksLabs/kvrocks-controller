@@ -24,16 +24,16 @@ import "errors"
 
 type Config struct {
 	// ID is the identity of the local raft. ID cannot be 0.
-	ID uint64
+	ID uint64 `yaml:"id"`
 	// DataDir is the directory to store the raft data which includes snapshot and WALs.
-	DataDir string
+	DataDir string `yaml:"datadir"`
 	// Join should be set to true if the node is joining an existing cluster.
-	Join bool
+	Join bool `yaml:"join"`
 
 	// Peers is the list of raft peers.
-	Peers            []string
-	HeartbeatSeconds int
-	ElectionSeconds  int
+	Peers            []string `yaml:"peers"`
+	HeartbeatSeconds int      `yaml:"heartbeat_seconds"`
+	ElectionSeconds  int      `yaml:"election_seconds"`
 }
 
 func (c *Config) validate() error {
