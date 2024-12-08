@@ -54,5 +54,5 @@ raft:
   join: false
   peers:
     - "http://127.0.0.1:4321"
-  heartbeat_seconds: 1
-  election_seconds: 10
+  heartbeat_seconds: 2
+  election_seconds: 20
