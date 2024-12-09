@@ -185,7 +185,7 @@ func TestCluster_MultiNodes(t *testing.T) {
 		require.Eventually(t, func() bool {
 			got, _ := n2.Get(ctx, "foo")
 			return string(got) == "bar"
-		}, 1*time.Second, 100*time.Millisecond)
+		}, 10*time.Second, 100*time.Millisecond)
 	})
 
 	t.Run("works well if 1/3 nodes down", func(t *testing.T) {

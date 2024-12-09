@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -135,32 +136,41 @@ func (ds *DataStore) openWAL(snapshot *raftpb.Snapshot) (*wal.WAL, error) {
 	return wal.Open(logger.Get(), ds.walDir, walSnapshot)
 }
 
-func (ds *DataStore) replayWAL() error {
+func (ds *DataStore) replayWAL() (*raftpb.Snapshot, error) {
 	snapshot, err := ds.loadSnapshotFromDisk()
 	if err != nil {
-		return fmt.Errorf("failed to load newest snapshot: %w", err)
+		return nil, fmt.Errorf("failed to load newest snapshot: %w", err)
 	}
 
 	w, err := ds.openWAL(snapshot)
 	if err != nil {
-		return fmt.Errorf("failed to open WAL: %w", err)
+		return nil, fmt.Errorf("failed to open WAL: %w", err)
 	}
 	ds.wal = w
 
 	_, hardState, entries, err := w.ReadAll()
 	if err != nil {
-		return fmt.Errorf("failed to read WAL: %w", err)
+		return nil, fmt.Errorf("failed to read WAL: %w", err)
 	}
 	if snapshot != nil {
 		_ = ds.raftStorage.ApplySnapshot(*snapshot)
 	}
 	if err := ds.raftStorage.SetHardState(hardState); err != nil {
-		return fmt.Errorf("failed to set hard state: %w", err)
+		return nil, fmt.Errorf("failed to set hard state: %w", err)
 	}
 	if err := ds.raftStorage.Append(entries); err != nil {
-		return fmt.Errorf("failed to append entries: %w", err)
+		return nil, fmt.Errorf("failed to append entries: %w", err)
 	}
-	return nil
+
+	if err := ds.reloadSnapshot(); err != nil {
+		return nil, fmt.Errorf("failed to reload snapshot: %w", err)
+	}
+	for _, entry := range entries {
+		if err := ds.applyDataEntry(entry); err != nil {
+			return nil, fmt.Errorf("failed to apply data entry: %w", err)
+		}
+	}
+	return snapshot, nil
 }
 
 func (ds *DataStore) saveSnapshot(snapshot raftpb.Snapshot) error {
@@ -176,6 +186,28 @@ func (ds *DataStore) saveSnapshot(snapshot raftpb.Snapshot) error {
 		return err
 	}
 	return ds.wal.ReleaseLockTo(snapshot.Metadata.Index)
+}
+
+func (ds *DataStore) applyDataEntry(entry raftpb.Entry) error {
+	if entry.Type != raftpb.EntryNormal || len(entry.Data) == 0 {
+		return nil
+	}
+
+	var e Event
+	if err := json.Unmarshal(entry.Data, &e); err != nil {
+		return err
+	}
+	switch e.Op {
+	case opSet:
+		ds.Set(e.Key, e.Value)
+	case opDelete:
+		ds.Delete(e.Key)
+	case opGet:
+		// do nothing
+	default:
+		return fmt.Errorf("unknown operation type: %d", e.Op)
+	}
+	return nil
 }
 
 func (ds *DataStore) Set(key string, value []byte) {
@@ -206,11 +238,14 @@ func (ds *DataStore) List(prefix string) []engine.Entry {
 	for k := range ds.kvs {
 		if strings.HasPrefix(k, prefix) {
 			entries = append(entries, engine.Entry{
-				Key:   strings.TrimPrefix(k, prefix),
+				Key:   strings.TrimLeft(strings.TrimPrefix(k, prefix), "/"),
 				Value: ds.kvs[k],
 			})
 		}
 	}
+	slices.SortFunc(entries, func(i, j engine.Entry) int {
+		return strings.Compare(i.Key, j.Key)
+	})
 	return entries
 }
 

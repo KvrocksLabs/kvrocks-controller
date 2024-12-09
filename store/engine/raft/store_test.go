@@ -21,6 +21,8 @@
 package raft
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
@@ -38,19 +40,23 @@ func TestDataStore(t *testing.T) {
 		os.RemoveAll(dir)
 	}()
 
-	err := store.replayWAL()
+	_, err := store.replayWAL()
 	require.NoError(t, err)
 
 	t.Run("reply WAL from the disk", func(t *testing.T) {
-		require.NoError(t, store.wal.Save(raftpb.HardState{Term: 1, Vote: 1}, []raftpb.Entry{
-			{Term: 1, Index: 1, Type: raftpb.EntryNormal, Data: []byte("test-1")},
-			{Term: 1, Index: 2, Type: raftpb.EntryNormal, Data: []byte("test-2")},
-			{Term: 1, Index: 3, Type: raftpb.EntryNormal, Data: []byte("test-3")},
-		}))
+		entries := make([]raftpb.Entry, 0)
+		for i := 0; i < 3; i++ {
+			payload, err := json.Marshal(Event{Op: opSet, Key: fmt.Sprintf("key-%d", i), Value: []byte(fmt.Sprintf("value-%d", i))})
+			require.NoError(t, err)
+			entries = append(entries, raftpb.Entry{Term: 1, Index: uint64(i + 1), Type: raftpb.EntryNormal, Data: payload})
+		}
+		require.NoError(t, store.wal.Save(raftpb.HardState{Term: 1, Vote: 1}, entries))
 		store.Close()
 
 		store = NewDataStore(dir)
-		require.NoError(t, store.replayWAL())
+		snapshot, err := store.replayWAL()
+		require.NoError(t, err)
+		require.NotNil(t, snapshot)
 
 		firstIndex, err := store.raftStorage.FirstIndex()
 		require.NoError(t, err)
@@ -63,6 +69,12 @@ func TestDataStore(t *testing.T) {
 		term, err := store.raftStorage.Term(1)
 		require.NoError(t, err)
 		require.EqualValues(t, 1, term)
+
+		for i := 0; i < 3; i++ {
+			v, err := store.Get(fmt.Sprintf("key-%d", i))
+			require.NoError(t, err)
+			require.Equal(t, []byte(fmt.Sprintf("value-%d", i)), v)
+		}
 	})
 
 	t.Run("Basic GET/SET/DELETE/LIST", func(t *testing.T) {

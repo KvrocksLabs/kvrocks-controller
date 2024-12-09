@@ -41,13 +41,13 @@ func init() {
 	flag.StringVar(&configPath, "c", "config/config.yaml", "set config yaml file path")
 }
 
-func registerSignal(shutdown chan struct{}) {
+func registerSignal(closeFn func()) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1}...)
 	go func() {
 		for sig := range c {
 			if handleSignals(sig) {
-				close(shutdown)
+				closeFn()
 				return
 			}
 		}
@@ -65,10 +65,13 @@ func handleSignals(sig os.Signal) (exitNow bool) {
 }
 
 func main() {
+	ctx, cancelFn := context.WithCancel(context.Background())
 	// os signal handler
 	shutdownCh := make(chan struct{})
-	registerSignal(shutdownCh)
-	ctx, cancelFn := context.WithCancel(context.Background())
+	registerSignal(func() {
+		close(shutdownCh)
+		cancelFn()
+	})
 
 	flag.Parse()
 
@@ -101,7 +104,6 @@ func main() {
 
 	// wait for the term signal
 	<-shutdownCh
-	cancelFn()
 	if err := srv.Stop(); err != nil {
 		logger.Get().With(zap.Error(err)).Error("Failed to close the server")
 	} else {

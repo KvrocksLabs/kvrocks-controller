@@ -22,6 +22,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -77,11 +78,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	if persist == nil {
 		return nil, fmt.Errorf("no found any store config")
 	}
-	clusterStore := store.NewClusterStore(persist)
-	if ok := clusterStore.IsReady(context.Background()); !ok {
-		return nil, fmt.Errorf("the cluster store is not ready")
-	}
 
+	clusterStore := store.NewClusterStore(persist)
 	ctrl, err := controller.New(clusterStore, cfg.Controller)
 	if err != nil {
 		return nil, err
@@ -103,7 +101,7 @@ func (srv *Server) startAPIServer() {
 	}
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil {
-			if err == http.ErrServerClosed {
+			if errors.Is(err, http.ErrServerClosed) {
 				return
 			}
 			panic(fmt.Errorf("API server: %w", err))
@@ -128,6 +126,9 @@ func PProf(c *gin.Context) {
 }
 
 func (srv *Server) Start(ctx context.Context) error {
+	if ok := srv.store.IsReady(ctx); !ok {
+		return fmt.Errorf("the cluster store is not ready")
+	}
 	if err := srv.controller.Start(ctx); err != nil {
 		return err
 	}

@@ -152,13 +152,18 @@ func (n *Node) run() error {
 		MaxInflightMsgs: 128,
 		MaxSizePerMsg:   10 * 1024 * 1024, // 10 MiB
 		Storage:         n.dataStore.raftStorage,
+		Logger:          Logger{SugaredLogger: n.logger.Sugar()},
 	}
 
 	// WAL existing check must be done before replayWAL since it will create a new WAL if not exists
 	walExists := n.dataStore.walExists()
-	if err := n.dataStore.replayWAL(); err != nil {
+	snapshot, err := n.dataStore.replayWAL()
+	if err != nil {
 		return err
 	}
+	n.appliedIndex = snapshot.Metadata.Index
+	n.snapshotIndex = snapshot.Metadata.Index
+	n.confState = snapshot.Metadata.ConfState
 
 	if n.config.Join || walExists {
 		n.raftNode = raft.RestartNode(raftConfig)
@@ -220,19 +225,6 @@ func (n *Node) runTransport() error {
 }
 
 func (n *Node) runRaftMessages() error {
-	snapshot, err := n.dataStore.loadSnapshotFromDisk()
-	if err != nil {
-		return err
-	}
-
-	// Load the snapshot into the key-value store.
-	if err := n.dataStore.reloadSnapshot(); err != nil {
-		return err
-	}
-	n.appliedIndex = snapshot.Metadata.Index
-	n.snapshotIndex = snapshot.Metadata.Index
-	n.confState = snapshot.Metadata.ConfState
-
 	n.wg.Add(1)
 	go func() {
 		ticker := time.NewTicker(100 * time.Millisecond)
@@ -357,8 +349,28 @@ func (n *Node) GetRaftLead() uint64 {
 	return n.raftNode.Status().Lead
 }
 
-func (n *Node) IsReady(_ context.Context) bool {
-	return n.raftNode.Status().Lead != raft.None
+func (n *Node) IsReady(ctx context.Context) bool {
+	tries := 0
+	for {
+		select {
+		case <-n.shutdown:
+			return false
+		case <-time.After(200 * time.Millisecond):
+			// wait for the leader to be elected
+			if n.GetRaftLead() != raft.None {
+				return true
+			}
+
+			tries++
+			if tries >= 10 {
+				// waiting too long, just return the running status
+				n.logger.Warn("Leader not elected, return the running status")
+				return n.isRunning.Load()
+			}
+		case <-ctx.Done():
+			return false
+		}
+	}
 }
 
 func (n *Node) LeaderChange() <-chan bool {
@@ -392,8 +404,7 @@ func (n *Node) Delete(ctx context.Context, key string) error {
 }
 
 func (n *Node) List(_ context.Context, prefix string) ([]engine.Entry, error) {
-	n.dataStore.List(prefix)
-	return nil, nil
+	return n.dataStore.List(prefix), nil
 }
 
 func (n *Node) applySnapshot(snapshot raftpb.Snapshot) error {
@@ -437,27 +448,7 @@ func (n *Node) applyEntries(entries []raftpb.Entry) {
 func (n *Node) applyEntry(entry raftpb.Entry) error {
 	switch entry.Type {
 	case raftpb.EntryNormal:
-		// apply entry to the state machine
-		if len(entry.Data) == 0 {
-			// empty message, skip it.
-			return nil
-		}
-
-		var e Event
-		if err := json.Unmarshal(entry.Data, &e); err != nil {
-			return err
-		}
-		switch e.Op {
-		case opSet:
-			n.dataStore.Set(e.Key, e.Value)
-			return nil
-		case opDelete:
-			n.dataStore.Delete(e.Key)
-		case opGet:
-			// do nothing
-		default:
-			return fmt.Errorf("unknown operation type: %d", e.Op)
-		}
+		return n.dataStore.applyDataEntry(entry)
 	case raftpb.EntryConfChangeV2, raftpb.EntryConfChange:
 		// apply config change to the state machine
 		var cc raftpb.ConfChange
