@@ -20,7 +20,7 @@ addr: "127.0.0.1:9379"
 
 
 # Which store engine should be used by controller
-# options: etcd, zookeeper
+# options: etcd, zookeeper, raft
 # default: etcd
 storage_type: etcd
 
@@ -47,3 +47,12 @@ controller:
   failover:
     ping_interval_seconds: 3
     min_alive_size: 5
+
+raft:
+  id: 1
+  datadir: "."
+  join: false
+  peers:
+    - "http://127.0.0.1:4321"
+  heartbeat_seconds: 2
+  election_seconds: 20
