@@ -68,7 +68,11 @@ func (c *TestCluster) createNode(peers []string) (*Node, error) {
 		HeartbeatSeconds: 1,
 		ElectionSeconds:  2,
 	})
-	return node, err
+	if err != nil {
+		return nil, err
+	}
+	c.nodes = append(c.nodes, node)
+	return node, nil
 }
 
 func (c *TestCluster) AddNode(ctx context.Context, nodeID uint64, peer string) error {
@@ -79,16 +83,18 @@ func (c *TestCluster) AddNode(ctx context.Context, nodeID uint64, peer string) e
 }
 
 func (c *TestCluster) RemoveNode(ctx context.Context, nodeID uint64) error {
+	var node *Node
 	for i, n := range c.nodes {
 		if n.config.ID == nodeID {
+			node = n
 			c.nodes = append(c.nodes[:i], c.nodes[i+1:]...)
 			break
 		}
 	}
-	if len(c.nodes) == 0 {
+	if len(c.nodes) == 0 || node == nil {
 		return nil
 	}
-	return c.nodes[0].RemovePeer(ctx, nodeID)
+	return node.RemovePeer(ctx, nodeID)
 }
 
 func (c *TestCluster) SetSnapshotThreshold(threshold uint64) {
@@ -234,13 +240,13 @@ func TestCluster_AddRemovePeer(t *testing.T) {
 			got, _ := n1.Get(ctx, "foo")
 			return string(got) == "bar-1"
 		}, 1*time.Second, 100*time.Millisecond)
-		require.Len(t, n1.Peers(), 4)
+		require.Len(t, n1.ListPeers(), 4)
 	})
 
 	t.Run("remove a peer node", func(t *testing.T) {
 		cluster.RemoveNode(ctx, 4)
 		require.Eventually(t, func() bool {
-			return len(n1.Peers()) == 3
+			return len(n1.ListPeers()) == 3
 		}, 10*time.Second, 100*time.Millisecond)
 	})
 }

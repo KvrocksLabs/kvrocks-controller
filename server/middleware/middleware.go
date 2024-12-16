@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/apache/kvrocks-controller/store/engine/raft"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -66,7 +67,11 @@ func RedirectIfNotLeader(c *gin.Context) {
 		c.Abort()
 		return
 	}
-	if !storage.IsLeader() {
+
+	_, isRaftMode := storage.GetEngine().(*raft.Node)
+	// Raft engine will forward the request to the leader nod under the hood,
+	// so we don't need to do the redirect.
+	if !storage.IsLeader() && !isRaftMode {
 		if !c.GetBool(consts.HeaderIsRedirect) {
 			c.Set(consts.HeaderIsRedirect, true)
 			peerAddr := helper.ExtractAddrFromSessionID(storage.Leader())
@@ -129,5 +134,17 @@ func RequiredClusterShard(c *gin.Context) {
 
 	c.Set(consts.ContextKeyCluster, cluster)
 	c.Set(consts.ContextKeyClusterShard, shard)
+	c.Next()
+}
+
+func RequiredRaftEngine(c *gin.Context) {
+	storage, _ := c.MustGet(consts.ContextKeyStore).(*store.ClusterStore)
+	raftNode, ok := storage.GetEngine().(*raft.Node)
+	if !ok {
+		helper.ResponseBadRequest(c, errors.New("raft engine is not enabled"))
+		c.Abort()
+		return
+	}
+	c.Set(consts.ContextKeyRaftNode, raftNode)
 	c.Next()
 }

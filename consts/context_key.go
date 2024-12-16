@@ -23,7 +23,7 @@ const (
 	ContextKeyStore        = "_context_key_storage"
 	ContextKeyCluster      = "_context_key_cluster"
 	ContextKeyClusterShard = "_context_key_cluster_shard"
-	ContextKeyHost         = "_context_key_host"
+	ContextKeyRaftNode     = "_context_key_raft_node"
 )
 
 const (

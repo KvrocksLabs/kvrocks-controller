@@ -47,6 +47,13 @@ func (srv *Server) initHandlers() {
 
 	apiV1 := engine.Group("/api/v1/")
 	{
+		raftAPI := apiV1.Group("raft")
+		{
+			raftAPI.Use(middleware.RequiredRaftEngine)
+			raftAPI.POST("/peers", handler.Raft.UpdatePeer)
+			raftAPI.GET("/peers", handler.Raft.ListPeers)
+		}
+
 		namespaces := apiV1.Group("namespaces")
 		{
 			namespaces.GET("", handler.Namespace.List)

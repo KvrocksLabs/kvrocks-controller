@@ -115,11 +115,12 @@ func (n *Node) Addr() string {
 	return n.addr
 }
 
-func (n *Node) Peers() []string {
-	peers := make([]string, 0)
+func (n *Node) ListPeers() map[uint64]string {
+	peers := make(map[uint64]string, 0)
 	n.peers.Range(func(key, value interface{}) bool {
+		id, _ := key.(uint64)
 		peer, _ := value.(string)
-		peers = append(peers, peer)
+		peers[id] = peer
 		return true
 	})
 	return peers
@@ -466,12 +467,13 @@ func (n *Node) applyEntry(entry raftpb.Entry) error {
 			}
 		case raftpb.ConfChangeRemoveNode:
 			n.peers.Delete(cc.NodeID)
-			n.transport.RemovePeer(types.ID(cc.NodeID))
 			if cc.NodeID == n.config.ID {
 				n.Close()
 				n.logger.Info("Node removed from the cluster")
 				return nil
 			}
+			n.logger.Info("Remove the peer", zap.Uint64("node_id", cc.NodeID))
+			n.transport.RemovePeer(types.ID(cc.NodeID))
 		case raftpb.ConfChangeUpdateNode:
 			n.transport.UpdatePeer(types.ID(cc.NodeID), []string{string(cc.Context)})
 			if _, ok := n.peers.Load(cc.NodeID); ok {

@@ -310,6 +310,10 @@ func (s *ClusterStore) EmitEvent(event EventPayload) {
 	s.eventNotifyCh <- event
 }
 
+func (s *ClusterStore) GetEngine() engine.Engine {
+	return s.e
+}
+
 func (s *ClusterStore) LeaderChange() <-chan bool {
 	return s.e.LeaderChange()
 }
