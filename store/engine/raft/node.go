@@ -166,7 +166,7 @@ func (n *Node) run() error {
 	n.snapshotIndex = snapshot.Metadata.Index
 	n.confState = snapshot.Metadata.ConfState
 
-	if n.config.Join || walExists {
+	if n.config.ClusterState == ClusterStateExisting || walExists {
 		n.raftNode = raft.RestartNode(raftConfig)
 	} else {
 		n.raftNode = raft.StartNode(raftConfig, peers)
@@ -175,6 +175,7 @@ func (n *Node) run() error {
 	if err := n.runTransport(); err != nil {
 		return err
 	}
+	n.watchLeaderChange()
 	return n.runRaftMessages()
 }
 
@@ -225,10 +226,33 @@ func (n *Node) runTransport() error {
 	return nil
 }
 
+func (n *Node) watchLeaderChange() {
+	n.wg.Add(1)
+	go func() {
+		defer n.wg.Done()
+
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-n.shutdown:
+				return
+			case <-ticker.C:
+				lead := n.GetRaftLead()
+				if lead != n.leader {
+					n.leader = lead
+					n.leaderChanged <- true
+					n.logger.Info("Found leader changed", zap.Uint64("leader", lead))
+				}
+			}
+		}
+	}()
+}
+
 func (n *Node) runRaftMessages() error {
 	n.wg.Add(1)
 	go func() {
-		ticker := time.NewTicker(100 * time.Millisecond)
+		ticker := time.NewTicker(time.Second)
 		defer func() {
 			ticker.Stop()
 			n.wg.Done()
@@ -253,9 +277,7 @@ func (n *Node) runRaftMessages() error {
 				if err := n.applySnapshot(rd.Snapshot); err != nil {
 					n.logger.Error("Failed to apply snapshot", zap.Error(err))
 				}
-				if len(rd.Entries) > 0 {
-					_ = n.dataStore.raftStorage.Append(rd.Entries)
-				}
+				_ = n.dataStore.raftStorage.Append(rd.Entries)
 
 				for _, msg := range rd.Messages {
 					if msg.Type == raftpb.MsgApp {
@@ -466,14 +488,14 @@ func (n *Node) applyEntry(entry raftpb.Entry) error {
 				n.peers.Store(cc.NodeID, string(cc.Context))
 			}
 		case raftpb.ConfChangeRemoveNode:
-			n.peers.Delete(cc.NodeID)
 			if cc.NodeID == n.config.ID {
+				n.logger.Info("I have been removed from the cluster, will shutdown")
 				n.Close()
-				n.logger.Info("Node removed from the cluster")
 				return nil
 			}
-			n.logger.Info("Remove the peer", zap.Uint64("node_id", cc.NodeID))
 			n.transport.RemovePeer(types.ID(cc.NodeID))
+			n.peers.Delete(cc.NodeID)
+			n.logger.Info("Remove the peer", zap.Uint64("node_id", cc.NodeID))
 		case raftpb.ConfChangeUpdateNode:
 			n.transport.UpdatePeer(types.ID(cc.NodeID), []string{string(cc.Context)})
 			if _, ok := n.peers.Load(cc.NodeID); ok {

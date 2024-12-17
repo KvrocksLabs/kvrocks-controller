@@ -1,6 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
 package api
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -8,9 +29,9 @@ import (
 	"github.com/apache/kvrocks-controller/logger"
 	"github.com/apache/kvrocks-controller/server/helper"
 	"github.com/apache/kvrocks-controller/store/engine/raft"
-	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 const (
@@ -40,8 +61,10 @@ func (r *MemberRequest) validate() error {
 
 func (handler *RaftHandler) ListPeers(c *gin.Context) {
 	raftNode, _ := c.MustGet(consts.ContextKeyRaftNode).(*raft.Node)
-	peers := raftNode.ListPeers()
-	helper.ResponseOK(c, gin.H{"peers": peers})
+	helper.ResponseOK(c, gin.H{
+		"leader": raftNode.GetRaftLead(),
+		"peers":  raftNode.ListPeers(),
+	})
 }
 
 func (handler *RaftHandler) UpdatePeer(c *gin.Context) {
@@ -56,10 +79,25 @@ func (handler *RaftHandler) UpdatePeer(c *gin.Context) {
 	}
 
 	raftNode, _ := c.MustGet(consts.ContextKeyRaftNode).(*raft.Node)
+	peers := raftNode.ListPeers()
+
 	var err error
 	if req.Operation == OperationAdd {
+		for _, peer := range peers {
+			if peer == req.Peer {
+				helper.ResponseError(c, fmt.Errorf("peer '%s' already exists", req.Peer))
+				return
+			}
+		}
 		err = raftNode.AddPeer(c, req.ID, req.Peer)
 	} else {
+		if _, ok := peers[req.ID]; !ok {
+			helper.ResponseBadRequest(c, errors.New("peer not exists"))
+		}
+		if len(peers) == 1 {
+			helper.ResponseBadRequest(c, errors.New("can't remove the last peer"))
+			return
+		}
 		err = raftNode.RemovePeer(c, req.ID)
 	}
 	if err != nil {

@@ -54,6 +54,11 @@ func NewTestCluster(n int) *TestCluster {
 			HeartbeatSeconds: 1,
 			ElectionSeconds:  2,
 		})
+		// drain leader change events
+		go func() {
+			for range nodes[i].LeaderChange() {
+			}
+		}()
 	}
 	return &TestCluster{nodes: nodes}
 }

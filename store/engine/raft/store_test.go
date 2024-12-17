@@ -97,10 +97,10 @@ func TestDataStore(t *testing.T) {
 		entries = store.List("ba")
 		require.Len(t, entries, 4)
 
-		entries = store.List("bar-2")
-		require.Len(t, entries, 1)
+		entries = store.List("bar")
+		require.Len(t, entries, 2)
 
-		entries = store.List("foo")
+		entries = store.List("fo")
 		require.Len(t, entries, 1)
 
 		store.Delete("bar-2")

@@ -28,6 +28,7 @@ import (
 
 func TestConfig_Validate(t *testing.T) {
 	c := &Config{}
+	c.init()
 
 	// missing ID
 	require.ErrorContains(t, c.validate(), "ID cannot be 0")
@@ -40,6 +41,12 @@ func TestConfig_Validate(t *testing.T) {
 	// ID greater than the number of peers
 	c.ID = 2
 	require.ErrorContains(t, c.validate(), "ID cannot be greater than the number of peers")
+
+	c.ID = 1
+	c.ClusterState = "invalid"
+	require.ErrorContains(t, c.validate(), "cluster state must be one of [new, existing]")
+	c.ClusterState = ClusterStateNew
+	require.NoError(t, c.validate())
 }
 
 func TestConfig_Init(t *testing.T) {

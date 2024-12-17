@@ -69,7 +69,7 @@ func RedirectIfNotLeader(c *gin.Context) {
 	}
 
 	_, isRaftMode := storage.GetEngine().(*raft.Node)
-	// Raft engine will forward the request to the leader nod under the hood,
+	// Raft engine will forward the request to the leader node under the hood,
 	// so we don't need to do the redirect.
 	if !storage.IsLeader() && !isRaftMode {
 		if !c.GetBool(consts.HeaderIsRedirect) {

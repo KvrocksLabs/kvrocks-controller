@@ -104,6 +104,7 @@ func (c *Controller) resume(ctx context.Context) error {
 		}
 		for _, cluster := range clusters {
 			c.addCluster(ns, cluster)
+			logger.Get().Debug("Resume the cluster", zap.String("namespace", ns), zap.String("cluster", cluster))
 		}
 	}
 	return nil

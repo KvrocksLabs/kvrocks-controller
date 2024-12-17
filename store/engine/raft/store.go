@@ -235,13 +235,19 @@ func (ds *DataStore) List(prefix string) []engine.Entry {
 	ds.mu.RLock()
 	defer ds.mu.RUnlock()
 	entries := make([]engine.Entry, 0)
-	for k := range ds.kvs {
-		if strings.HasPrefix(k, prefix) {
-			entries = append(entries, engine.Entry{
-				Key:   strings.TrimLeft(strings.TrimPrefix(k, prefix), "/"),
-				Value: ds.kvs[k],
-			})
+	for key := range ds.kvs {
+		if !strings.HasPrefix(key, prefix) || key == prefix {
+			continue
 		}
+		trimmedKey := strings.TrimLeft(key[len(prefix)+1:], "/")
+		if strings.ContainsRune(trimmedKey, '/') {
+			continue
+		}
+
+		entries = append(entries, engine.Entry{
+			Key:   trimmedKey,
+			Value: ds.kvs[trimmedKey],
+		})
 	}
 	slices.SortFunc(entries, func(i, j engine.Entry) int {
 		return strings.Compare(i.Key, j.Key)

@@ -20,15 +20,23 @@
 
 package raft
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
+
+const (
+	ClusterStateNew      = "new"
+	ClusterStateExisting = "existing"
+)
 
 type Config struct {
 	// ID is the identity of the local raft. ID cannot be 0.
 	ID uint64 `yaml:"id"`
 	// DataDir is the directory to store the raft data which includes snapshot and WALs.
 	DataDir string `yaml:"data_dir"`
-	// Join should be set to true if the node is joining an existing cluster.
-	Join bool `yaml:"join"`
+	// ClusterState is the state of the cluster, can be one of "new" and "existing".
+	ClusterState string `yaml:"cluster_state"`
 	// Peers is the list of raft peers.
 	Peers []string `yaml:"peers"`
 	// HeartbeatSeconds is the interval to send heartbeat message. Default is 2 seconds.
@@ -47,10 +55,15 @@ func (c *Config) validate() error {
 	if c.ID > uint64(len(c.Peers)) {
 		return errors.New("ID cannot be greater than the number of peers")
 	}
+	clusterState := strings.ToLower(c.ClusterState)
+	if clusterState != ClusterStateNew && clusterState != ClusterStateExisting {
+		return errors.New("cluster state must be one of [new, existing]")
+	}
 	return nil
 }
 
 func (c *Config) init() {
+	c.ClusterState = ClusterStateNew
 	if c.DataDir == "" {
 		c.DataDir = "."
 	}
