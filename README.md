@@ -45,7 +45,7 @@ $ ./_build/kvctl-server -c config/config.yaml
 
 ### Run server with the raft embedding engine
 
-> Note: The raft embedding engine is still in the experimental stage, and it's not recommended to use it in the production environment.
+> Note: The embedded Raft engine is still in the experimental stage, and it's not recommended to use it in the production environment.
 
 Change the storage type to `raft` in the configuration file.
 
