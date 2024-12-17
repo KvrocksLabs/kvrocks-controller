@@ -116,7 +116,7 @@ func (n *Node) Addr() string {
 }
 
 func (n *Node) ListPeers() map[uint64]string {
-	peers := make(map[uint64]string, 0)
+	peers := make(map[uint64]string)
 	n.peers.Range(func(key, value interface{}) bool {
 		id, _ := key.(uint64)
 		peer, _ := value.(string)
