@@ -24,19 +24,14 @@ addr: "127.0.0.1:9379"
 # Note: the raft engine is an experimental feature and is not recommended for production use.
 #
 # default: etcd
-storage_type: etcd
+storage_type: zookeeper
 
-etcd:
+zookeeper:
   addrs:
-    - "127.0.0.1:2379"
-  username:
-  password:
+    - "127.0.0.1:2181"
+  scheme:
+  auth:
   elect_path:
-  tls:
-    enable: false
-    cert_file:
-    key_file:
-    ca_file:
 
 controller:
   failover:

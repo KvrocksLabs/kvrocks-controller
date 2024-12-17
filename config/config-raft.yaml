@@ -24,19 +24,19 @@ addr: "127.0.0.1:9379"
 # Note: the raft engine is an experimental feature and is not recommended for production use.
 #
 # default: etcd
-storage_type: etcd
+storage_type: raft
 
-etcd:
-  addrs:
-    - "127.0.0.1:2379"
-  username:
-  password:
-  elect_path:
-  tls:
-    enable: false
-    cert_file:
-    key_file:
-    ca_file:
+raft:
+  id: 1
+  data_dir: "/data/kvrocks/raft"
+  # Cluster state must be 'new' or 'existing'.
+  # For a new cluster, its initial cluster state must be set to 'new'.
+  # And you would like to join an existing cluster, its initial cluster state must be set to 'existing'.
+  cluster_state: "new"
+  peers:
+    - "http://127.0.0.1:6001"
+    - "http://127.0.0.1:6002"
+    - "http://127.0.0.1:6003"
 
 controller:
   failover:
