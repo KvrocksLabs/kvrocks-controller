@@ -93,6 +93,7 @@ func (handler *RaftHandler) UpdatePeer(c *gin.Context) {
 	} else {
 		if _, ok := peers[req.ID]; !ok {
 			helper.ResponseBadRequest(c, errors.New("peer not exists"))
+			return
 		}
 		if len(peers) == 1 {
 			helper.ResponseBadRequest(c, errors.New("can't remove the last peer"))
