@@ -43,7 +43,7 @@ $ ./_build/kvctl-server -c config/config.yaml
 
 ![image](docs/images/server.gif)
 
-### Run server with the raft embedding engine
+### Run server with the embedded Raft engine
 
 > Note: The embedded Raft engine is still in the experimental stage, and it's not recommended to use it in the production environment.
 
@@ -62,10 +62,10 @@ raft:
     - "http://127.0.0.1:6003"
 ```
 
-- id: the node id for the raft node, it's also an index in the peers list
-- data_dir: the directory to store the raft data
-- cluster_state: the state of the raft cluster, it should be `new` when the cluster is initialized. And it should be `existing` when the cluster is already bootstrapped.
-- peers: the list of the raft peers, it should include all the nodes in the cluster.
+- `id`: the id for the raft node, it's also an index in the `peers` list
+- `data_dir`: the directory to store the raft data
+- `cluster_state`: the state of the raft cluster, it should be `new` when the cluster is initialized. And it should be `existing` when the cluster is already bootstrapped.
+- `peers`: the list of the raft peers, it should include all the nodes in the cluster.
 
 And then you can run the controller server with the configuration file.
 
