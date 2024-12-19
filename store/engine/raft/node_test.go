@@ -109,12 +109,7 @@ func (c *TestCluster) SetSnapshotThreshold(threshold uint64) {
 }
 
 func (c *TestCluster) IsReady(ctx context.Context) bool {
-	for _, n := range c.nodes {
-		if !n.IsReady(ctx) {
-			return false
-		}
-	}
-	return true
+	return c.GetLeaderID(raft.None) != raft.None
 }
 
 func (c *TestCluster) GetNode(i int) *Node {
@@ -124,18 +119,22 @@ func (c *TestCluster) GetNode(i int) *Node {
 	return c.nodes[i]
 }
 
-func (c *TestCluster) GetLeaderNode() *Node {
+// GetLeaderNode returns the leader node, if there is no leader or reach consensus return raft.None.
+// excludeNodeID is the node ID that will be excluded from the leader check, it's useful when we want to
+// check if the leader is changed.
+func (c *TestCluster) GetLeaderID(excludeNodeID uint64) uint64 {
 	leaderID := raft.None
 	for _, n := range c.nodes {
-		if n.GetRaftLead() == leaderID {
+		if n.config.ID == excludeNodeID {
 			continue
+		}
+		// If the leader is not the same means nodes are not reach consensus.
+		if leaderID != raft.None && leaderID != n.GetRaftLead() {
+			return raft.None
 		}
 		leaderID = n.GetRaftLead()
 	}
-	if leaderID == raft.None {
-		return nil
-	}
-	return c.GetNode(int(leaderID - 1))
+	return leaderID
 }
 
 func (c *TestCluster) ListNodes() []*Node {
@@ -200,16 +199,20 @@ func TestCluster_MultiNodes(t *testing.T) {
 	})
 
 	t.Run("works well if 1/3 nodes down", func(t *testing.T) {
-		oldLeaderNode := cluster.GetLeaderNode()
-		require.NotNil(t, oldLeaderNode)
-		oldLeaderNode.Close()
+		oldLeaderID := cluster.GetLeaderID(raft.None)
+		require.NotEqual(t, raft.None, oldLeaderID)
+		leaderNode := cluster.GetNode(int(oldLeaderID - 1))
+		require.NotNil(t, leaderNode)
+		leaderNode.Close()
 
 		require.Eventually(t, func() bool {
-			newLeaderNode := cluster.GetLeaderNode()
-			return newLeaderNode != nil && newLeaderNode != oldLeaderNode
+			newLeaderID := cluster.GetLeaderID(oldLeaderID)
+			return newLeaderID != raft.None && newLeaderID != oldLeaderID
 		}, 10*time.Second, 200*time.Millisecond)
 
-		leaderNode := cluster.GetLeaderNode()
+		newLeaderID := cluster.GetLeaderID(oldLeaderID)
+		require.NotEqual(t, raft.None, newLeaderID)
+		leaderNode = cluster.GetNode(int(newLeaderID - 1))
 		require.NoError(t, leaderNode.Set(ctx, "foo", []byte("bar")))
 	})
 }

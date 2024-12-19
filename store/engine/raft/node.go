@@ -241,7 +241,11 @@ func (n *Node) watchLeaderChange() {
 				lead := n.GetRaftLead()
 				if lead != n.leader {
 					n.leader = lead
-					n.leaderChanged <- true
+					select {
+					case <-n.shutdown:
+						return
+					case n.leaderChanged <- true:
+					}
 					n.logger.Info("Found leader changed", zap.Uint64("leader", lead))
 				}
 			}
