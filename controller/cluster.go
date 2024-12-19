@@ -112,7 +112,7 @@ func (c *ClusterChecker) probeNode(ctx context.Context, node store.Node) (int64,
 		// And it's fixed in PR: https://github.com/apache/kvrocks/pull/2362,
 		// but we need to be compatible with the old version here.
 		if strings.Contains(err.Error(), ErrRestoringBackUp.Error()) {
-			return -1, nil
+			return -1, ErrRestoringBackUp
 		} else if strings.Contains(err.Error(), ErrClusterNotInitialized.Error()) {
 			return -1, ErrClusterNotInitialized
 		} else {
@@ -203,6 +203,11 @@ func (c *ClusterChecker) parallelProbeNodes(ctx context.Context, cluster *store.
 					zap.String("addr", n.Addr()),
 				)
 				version, err := c.probeNode(ctx, n)
+				// Don't sync the cluster info to the node if it is restoring the db from backup
+				if errors.Is(err, ErrRestoringBackUp) {
+					log.Error("The node is restoring the db from backup")
+					return
+				}
 				if err != nil && !errors.Is(err, ErrClusterNotInitialized) {
 					failureCount := c.increaseFailureCount(shardIdx, n)
 					log.With(zap.Error(err),
