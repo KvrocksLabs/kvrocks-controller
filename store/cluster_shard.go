@@ -66,6 +66,17 @@ func NewShard() *Shard {
 	}
 }
 
+func (shard *Shard) Clone() *Shard {
+	clone := NewShard()
+	clone.SlotRanges = make([]SlotRange, len(shard.SlotRanges))
+	copy(clone.SlotRanges, shard.SlotRanges)
+	clone.TargetShardIndex = shard.TargetShardIndex
+	clone.MigratingSlot = shard.MigratingSlot
+	clone.Nodes = make([]Node, len(shard.Nodes))
+	copy(clone.Nodes, shard.Nodes)
+	return clone
+}
+
 func (shard *Shard) ClearMigrateState() {
 	shard.MigratingSlot = -1
 	shard.TargetShardIndex = -1

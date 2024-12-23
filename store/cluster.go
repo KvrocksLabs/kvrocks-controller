@@ -77,6 +77,18 @@ func NewCluster(name string, nodes []string, replicas int) (*Cluster, error) {
 	return cluster, nil
 }
 
+func (cluster *Cluster) Clone() *Cluster {
+	clone := &Cluster{
+		Name:   cluster.Name,
+		Shards: make([]*Shard, 0),
+	}
+	clone.Version.Store(cluster.Version.Load())
+	for _, shard := range cluster.Shards {
+		clone.Shards = append(clone.Shards, shard.Clone())
+	}
+	return clone
+}
+
 // SetPassword will set the password for all nodes in the cluster.
 func (cluster *Cluster) SetPassword(password string) {
 	for i := 0; i < len(cluster.Shards); i++ {
