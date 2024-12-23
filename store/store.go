@@ -180,7 +180,7 @@ func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo
 	if err != nil {
 		return err
 	}
-	if oldCluster.Version.Load() != clusterInfo.Version.Load() {
+	if oldCluster.Version.Load() > clusterInfo.Version.Load() {
 		return fmt.Errorf("the cluster has been updated by others")
 	}
 
@@ -212,7 +212,7 @@ func (s *ClusterStore) SetCluster(ctx context.Context, ns string, clusterInfo *C
 	if err != nil {
 		return err
 	}
-	if oldCluster.Version.Load() != clusterInfo.Version.Load() {
+	if oldCluster.Version.Load() > clusterInfo.Version.Load() {
 		return fmt.Errorf("the cluster has been updated by others")
 	}
 
