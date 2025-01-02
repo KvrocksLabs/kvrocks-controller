@@ -124,7 +124,7 @@ func New(id string, cfg *Config) (*Consul, error) {
 	c.watchPlan.Handler = c.watchHandler
 	c.isReady.Store(false)
 	c.wg.Add(2)
-	go c.electLoop(context.Background())
+	go c.electLoop()
 	go c.runWatch()
 	return c, nil
 }
@@ -218,7 +218,7 @@ func (c *Consul) List(ctx context.Context, prefix string) ([]engine.Entry, error
 	return entries, nil
 }
 
-func (c *Consul) electLoop(ctx context.Context) {
+func (c *Consul) electLoop() {
 	defer c.wg.Done()
 	for {
 		select {
