@@ -501,7 +501,9 @@ linters:
     - gofmt
     - goimports
     - lll
-    - megacheck
+    - gosimple
+    - staticcheck
+    - unused
     - misspell
     - nilnil
     - revive
