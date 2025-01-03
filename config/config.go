@@ -28,7 +28,7 @@ import (
 
 	"github.com/apache/kvrocks-controller/store/engine/raft"
 
-	"github.com/go-playground/validator/v10"
+	validator "github.com/go-playground/validator/v10"
 
 	"github.com/apache/kvrocks-controller/logger"
 	"github.com/apache/kvrocks-controller/store/engine/etcd"
