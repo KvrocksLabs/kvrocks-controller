@@ -26,6 +26,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/apache/kvrocks-controller/store/engine/consul"
 	"github.com/apache/kvrocks-controller/store/engine/raft"
 
 	"github.com/go-playground/validator/v10"
@@ -56,6 +57,7 @@ type Config struct {
 	Etcd        *etcd.Config      `yaml:"etcd"`
 	Zookeeper   *zookeeper.Config `yaml:"zookeeper"`
 	Raft        *raft.Config      `yaml:"raft"`
+	Consul      *consul.Config    `yaml:"consul"`
 	Admin       AdminConfig       `yaml:"admin"`
 	Controller  *ControllerConfig `yaml:"controller"`
 }

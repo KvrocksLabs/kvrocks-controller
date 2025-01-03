@@ -20,7 +20,7 @@ addr: "127.0.0.1:9379"
 
 
 # Which store engine should be used by controller
-# options: etcd, zookeeper, raft
+# options: etcd, zookeeper, raft, consul
 # Note: the raft engine is an experimental feature and is not recommended for production use.
 #
 # default: etcd
