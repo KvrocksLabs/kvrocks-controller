@@ -50,8 +50,6 @@ type ControllerConfig struct {
 
 const defaultPort = 9379
 
-var checker *validator.Validate
-
 type Config struct {
 	Addr        string            `yaml:"addr"`
 	StorageType string            `yaml:"storage_type"`
@@ -99,7 +97,7 @@ func (c *Config) Validate() error {
 func (c *Config) getAddr() string {
 	// env has higher priority than configuration.
 	// case: get addr from env
-	checker = validator.New()
+	checker := validator.New()
 	host := os.Getenv("KVROCKS_CONTROLLER_HTTP_HOST")
 	port := os.Getenv("KVROCKS_CONTROLLER_HTTP_PORT")
 	addr := host + ":" + port
