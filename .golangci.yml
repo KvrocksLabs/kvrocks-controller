@@ -56,16 +56,13 @@ run:
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate|junit-xml|github-actions
   # default is "colored-line-number"
-  format: colored-line-number
+  formats: colored-line-number
 
   # print lines of code with issue, default is true
   print-issued-lines: true
 
   # print linter name in the end of issue text, default is true
   print-linter-name: true
-
-  # make issues output unique by line, default is true
-  uniq-by-line: true
 
   # add a prefix to the output file references; default is no prefix
   path-prefix: ""
@@ -295,9 +292,6 @@ linters-settings:
     checks: [ "all" ]
 
   govet:
-    # report about shadowed variables
-    check-shadowing: false
-
     # settings per analyzer
     settings:
       printf: # analyzer name, run `go tool vet help` to see all analyzers
@@ -596,6 +590,9 @@ issues:
 
   # Fix found issues (if it's supported by the linter)
   fix: true
+  
+  # make issues output unique by line, default is true
+  uniq-by-line: true
 
 severity:
   # Default value is empty string.
