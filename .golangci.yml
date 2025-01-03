@@ -506,9 +506,7 @@ linters:
     - nilnil
     - revive
   disable:
-    - maligned
     - prealloc
-    - scopelint
   disable-all: false
   presets:
     - bugs
