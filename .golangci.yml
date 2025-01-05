@@ -344,10 +344,6 @@ linters-settings:
     # Allow only slices initialized with a length of zero. Default is false.
     always: false
 
-  maligned:
-    # print struct with more effective memory layout or not, false by default
-    suggest-new: true
-
   misspell:
     # Correct spellings using locale preferences for US or UK.
     # Default is to use a neutral variety of English.
@@ -510,9 +506,7 @@ linters:
     - nilnil
     - revive
   disable:
-    - maligned
     - prealloc
-    - scopelint
   disable-all: false
   presets:
     - bugs
