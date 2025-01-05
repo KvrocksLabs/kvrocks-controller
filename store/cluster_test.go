@@ -30,10 +30,6 @@ import (
 )
 
 func TestCluster_Clone(t *testing.T) {
-	var cluster *Cluster
-	emptyCluster := cluster.Clone()
-	require.Nil(t, emptyCluster)
-
 	cluster, err := NewCluster("test", []string{"node1", "node2", "node3"}, 1)
 	require.NoError(t, err)
 

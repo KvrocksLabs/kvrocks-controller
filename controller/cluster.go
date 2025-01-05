@@ -341,6 +341,10 @@ func (c *ClusterChecker) migrationLoop() {
 			return
 		case <-ticker.C:
 			c.clusterMu.Lock()
+			if c.cluster == nil {
+				c.clusterMu.Unlock()
+				continue
+			}
 			clonedCluster := c.cluster.Clone()
 			c.clusterMu.Unlock()
 			if clonedCluster == nil {
