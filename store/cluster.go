@@ -78,6 +78,10 @@ func NewCluster(name string, nodes []string, replicas int) (*Cluster, error) {
 }
 
 func (cluster *Cluster) Clone() *Cluster {
+	if cluster == nil {
+		return nil
+	}
+
 	clone := &Cluster{
 		Name:   cluster.Name,
 		Shards: make([]*Shard, 0),

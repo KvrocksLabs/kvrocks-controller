@@ -29,6 +29,19 @@ import (
 	"github.com/apache/kvrocks-controller/consts"
 )
 
+func TestCluster_Clone(t *testing.T) {
+	var cluster *Cluster
+	emptyCluster := cluster.Clone()
+	require.Nil(t, emptyCluster)
+
+	cluster, err := NewCluster("test", []string{"node1", "node2", "node3"}, 1)
+	require.NoError(t, err)
+
+	clusterCopy := cluster.Clone()
+	require.Equal(t, cluster.Name, clusterCopy.Name)
+	require.Equal(t, cluster.Shards, clusterCopy.Shards)
+}
+
 func TestCluster_FindIndexShardBySlot(t *testing.T) {
 	cluster, err := NewCluster("test", []string{"node1", "node2", "node3"}, 1)
 	require.NoError(t, err)
