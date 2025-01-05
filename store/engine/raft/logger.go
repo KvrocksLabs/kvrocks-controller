@@ -39,3 +39,43 @@ func (r Logger) Warning(v ...interface{}) {
 func (r Logger) Warningf(format string, v ...interface{}) {
 	r.SugaredLogger.Warnf(format, v...)
 }
+
+func (r Logger) Debug(v ...interface{}) {
+	r.SugaredLogger.Debug(v...)
+}
+
+func (r Logger) Debugf(format string, v ...interface{}) {
+	r.SugaredLogger.Debugf(format, v...)
+}
+
+func (r Logger) Error(v ...interface{}) {
+	r.SugaredLogger.Error(v...)
+}
+
+func (r Logger) Errorf(format string, v ...interface{}) {
+	r.SugaredLogger.Errorf(format, v...)
+}
+
+func (r Logger) Info(v ...interface{}) {
+	r.SugaredLogger.Info(v...)
+}
+
+func (r Logger) Infof(format string, v ...interface{}) {
+	r.SugaredLogger.Infof(format, v...)
+}
+
+func (r Logger) Fatal(v ...interface{}) {
+	r.SugaredLogger.Fatal(v...)
+}
+
+func (r Logger) Fatalf(format string, v ...interface{}) {
+	r.SugaredLogger.Fatalf(format, v...)
+}
+
+func (r Logger) Panic(v ...interface{}) {
+	r.SugaredLogger.Panic(v...)
+}
+
+func (r Logger) Panicf(format string, v ...interface{}) {
+	r.SugaredLogger.Panicf(format, v...)
+}
