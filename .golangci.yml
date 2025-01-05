@@ -56,16 +56,13 @@ run:
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate|junit-xml|github-actions
   # default is "colored-line-number"
-  format: colored-line-number
+  formats: colored-line-number
 
   # print lines of code with issue, default is true
   print-issued-lines: true
 
   # print linter name in the end of issue text, default is true
   print-linter-name: true
-
-  # make issues output unique by line, default is true
-  uniq-by-line: true
 
   # add a prefix to the output file references; default is no prefix
   path-prefix: ""
@@ -289,8 +286,6 @@ linters-settings:
         truncate: "32"
 
   gosimple:
-    # Select the Go version to target. The default is '1.13'.
-    go: "1.19"
     # https://staticcheck.io/docs/options#checks
     checks: [ "all" ]
 
@@ -430,14 +425,10 @@ linters-settings:
         severity: warning
 
   staticcheck:
-    # Select the Go version to target. The default is '1.13'.
-    go: "1.19"
     # https://staticcheck.io/docs/options#checks
     checks: [ "all" ]
 
   stylecheck:
-    # Select the Go version to target. The default is '1.13'.
-    go: "1.19"
     # https://staticcheck.io/docs/options#checks
     checks: [ "all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022" ]
     # https://staticcheck.io/docs/options#dot_import_whitelist
@@ -567,6 +558,9 @@ issues:
   # The default value is false. If set to true exclude and exclude-rules
   # regular expressions become case sensitive.
   exclude-case-sensitive: false
+
+  # make issues output unique by line, default is true
+  uniq-by-line: true
 
   # The list of ids of default excludes to include or disable. By default it's empty.
   include:
