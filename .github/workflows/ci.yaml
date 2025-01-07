@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: apache/skywalking-eyes/header@v0.4.0
+      - uses: apache/skywalking-eyes/header@v0.6.0
         with:
           config: .github/config/licenserc.yaml
 
