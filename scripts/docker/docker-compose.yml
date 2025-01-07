@@ -69,3 +69,10 @@ services:
     container_name: zookeeper0
     ports:
       - "2181:2181"
+
+  consul0:
+    image: hashicorp/consul:latest
+    container_name: consul0
+    ports:
+      - "8500:8500"
+    command: "agent -dev -client=0.0.0.0"

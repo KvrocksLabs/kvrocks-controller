@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/apache/kvrocks-controller/store/engine/consul"
 	"github.com/apache/kvrocks-controller/store/engine/raft"
 
 	"github.com/gin-gonic/gin"
@@ -67,6 +68,9 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	case "raft":
 		logger.Get().Info("Use Raft as store")
 		persist, err = raft.New(cfg.Raft)
+	case "consul":
+		logger.Get().Info("Use Consul as store")
+		persist, err = consul.New(sessionID, cfg.Consul)
 	default:
 		logger.Get().Info("Use Etcd as default store")
 		persist, err = etcd.New(sessionID, cfg.Etcd)
