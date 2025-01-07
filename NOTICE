@@ -53,3 +53,13 @@ The text of each license is also included in licenses/LICENSE-[project].txt
 - go.uber.org/zap
 - github.com/go-playground/validator
 - github.com/go-resty/resty
+
+================================================================
+MPL-2.0 licenses
+================================================================
+
+The following components are provided under the MPL 2.0 License. See project link for details.
+The text of each license is also included in licenses/LICENSE-[project].txt
+
+- github.com/hashicorp/consul/api
+
