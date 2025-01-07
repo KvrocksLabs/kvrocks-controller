@@ -37,12 +37,11 @@ import (
 )
 
 const (
-	sessionTTL = 10 * time.Second
-	lockDelay  = time.Millisecond
+	sessionTTL          = 10 * time.Second
+	lockDelay           = time.Millisecond
+	configSchemeWithTLS = "https"
+	defaultElectPath    = "kvrocks/controller/leader"
 )
-
-const configSchemeWithTLS = "https"
-const defaultElectPath = "kvrocks/controller/leader"
 
 type Config struct {
 	Addrs []string `yaml:"addrs"`
@@ -75,6 +74,10 @@ type Consul struct {
 func New(id string, cfg *Config) (*Consul, error) {
 	if len(id) == 0 {
 		return nil, errors.New("id must NOT be a empty string")
+	}
+
+	if len(cfg.Addrs) == 0 {
+		return nil, errors.New("Consul address must be provided")
 	}
 
 	clientConfig := &api.Config{
@@ -226,7 +229,7 @@ func (c *Consul) electLoop() {
 			return
 		default:
 		}
-	reset:
+
 		sessionID, _, err := c.client.Session().Create(&api.SessionEntry{
 			Name:      c.electPath,
 			Behavior:  "release",
@@ -248,21 +251,27 @@ func (c *Consul) electLoop() {
 			Session: sessionID,
 		}
 
-		for {
-			if _, _, err := c.client.KV().Acquire(kvPair, nil); err != nil {
-				logger.Get().With(
-					zap.Error(err),
-				).Error("Failed to acquire the leader campaign")
-				continue
-			}
+		if c.leaderElection(kvPair) {
+			return
+		}
+	}
+}
 
-			select {
-			case <-c.lockReleaseCh:
-				goto reset
-			case <-c.quitCh:
-				logger.Get().Info("Exit the leader election loop")
-				return
-			}
+func (c *Consul) leaderElection(kvPair *api.KVPair) bool {
+	for {
+		if _, _, err := c.client.KV().Acquire(kvPair, nil); err != nil {
+			logger.Get().With(
+				zap.Error(err),
+			).Error("Failed to acquire the leader campaign")
+			continue
+		}
+
+		select {
+		case <-c.lockReleaseCh:
+			return false
+		case <-c.quitCh:
+			logger.Get().Info("Exit the leader election loop")
+			return true
 		}
 	}
 }
