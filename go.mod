@@ -1,8 +1,8 @@
 module github.com/apache/kvrocks-controller
 
-go 1.22
+go 1.23
 
-toolchain go1.22.9
+toolchain go1.23.4
 
 require (
 	github.com/fatih/color v1.16.0
