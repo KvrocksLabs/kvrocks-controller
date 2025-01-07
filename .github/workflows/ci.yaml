@@ -27,7 +27,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23
+          go-version-file: './go.mod'
 
       - name: Checkout Code Base
         uses: actions/checkout@v4
@@ -58,7 +58,7 @@ jobs:
     needs: [lint]
     strategy:
       matrix:
-        go-version: [1.23, stable]
+        go-version: [1.23]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
