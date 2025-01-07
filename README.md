@@ -30,6 +30,7 @@ For the storage, the ETCD is used as the default storage now. Welcome to contrib
 
 - [x] ETCD
 - [x] Zookeeper
+- [x] Consul by HashiCorp
 - [x] Embedded Storage based on Raft (experimental)
 
 ### Run the controller server
