@@ -76,3 +76,15 @@ services:
     ports:
       - "8500:8500"
     command: "agent -dev -client=0.0.0.0"
+
+  postgres0:
+    build: ./pg-dockerfile
+    container_name: postgres0
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: testdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./pg-init-scripts:/docker-entrypoint-initdb.d
