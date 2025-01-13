@@ -145,7 +145,7 @@ func (p *Postgresql) Get(ctx context.Context, key string) ([]byte, error) {
 
 	row := p.db.QueryRow(query, key)
 	err := row.Scan(&value)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, consts.ErrNotFound
 	}
 	if err != nil {
@@ -179,7 +179,7 @@ func (p *Postgresql) Delete(ctx context.Context, key string) error {
 
 func (p *Postgresql) List(ctx context.Context, prefix string) ([]engine.Entry, error) {
 	prefixWithWildcard := prefix + "%"
-	query := "SELECT * from kv WHERE key LIKE $1"
+	query := "SELECT key, value from kv WHERE key LIKE $1"
 	rows, err := p.db.Query(query, prefixWithWildcard)
 	if err != nil {
 		return nil, err
@@ -280,7 +280,7 @@ func (p *Postgresql) initLeaderId() error {
 	query := "SELECT leaderID FROM locks WHERE name = $1"
 	row := p.db.QueryRow(query, p.electPath)
 	err := row.Scan(&leaderId)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		p.leaderID = ""
 		return nil
 	}

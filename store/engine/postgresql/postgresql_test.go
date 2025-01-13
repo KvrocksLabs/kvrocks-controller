@@ -29,11 +29,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const addr = "127.0.0.1:5432"
-const notifyChannel = "lock_change"
-const username = "postgres"
-const password = "postgres"
-const dbName = "testdb"
+const (
+	addr          = "127.0.0.1:5432"
+	notifyChannel = "lock_change"
+	username      = "postgres"
+	password      = "postgres"
+	dbName        = "testdb"
+)
 
 func TestBasicOperations(t *testing.T) {
 	id := util.RandString(40)
