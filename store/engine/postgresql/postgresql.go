@@ -99,9 +99,12 @@ func New(id string, cfg *Config) (*Postgresql, error) {
 		lockReleaseCh:  make(chan bool),
 		leaderChangeCh: make(chan bool),
 	}
+	err = p.initLeaderId()
+	if err != nil {
+		return nil, err
+	}
 	p.isReady.Store(false)
 	p.wg.Add(2)
-	p.initLeaderId()
 	go p.electLoop()
 	go p.observeLeaderEvent()
 	return p, nil
@@ -207,6 +210,11 @@ func (p *Postgresql) List(ctx context.Context, prefix string) ([]engine.Entry, e
 			Value: value,
 		})
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
 	return entries, nil
 }
 
