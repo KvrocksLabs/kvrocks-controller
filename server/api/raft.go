@@ -44,7 +44,7 @@ type RaftHandler struct{}
 type MemberRequest struct {
 	ID        uint64 `json:"id" validate:"required,gt=0"`
 	Operation string `json:"operation" validate:"required"`
-	Peer      string `json:"peer"`
+	Peer      string `json:"peer,omitempty"`
 }
 
 func (r *MemberRequest) validate() error {
