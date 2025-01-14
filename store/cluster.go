@@ -22,20 +22,20 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
-
-	"go.uber.org/atomic"
+	"sync/atomic"
 
 	"github.com/apache/kvrocks-controller/consts"
 )
 
 type Cluster struct {
 	Name    string       `json:"name"`
-	Version atomic.Int64 `json:"version"`
+	Version atomic.Int64 `json:"-"`
 	Shards  []*Shard     `json:"shards"`
 }
 
@@ -232,7 +232,7 @@ func (cluster *Cluster) MigrateSlot(ctx context.Context, slot int, targetShardId
 }
 
 func (cluster *Cluster) SetSlot(ctx context.Context, slot int, targetNodeID string) error {
-	version := cluster.Version.Inc()
+	version := cluster.Version.Add(1)
 	for i := 0; i < len(cluster.Shards); i++ {
 		for _, node := range cluster.Shards[i].Nodes {
 			clusterNode, ok := node.(*ClusterNode)
@@ -309,8 +309,42 @@ func ParseCluster(clusterStr string) (*Cluster, error) {
 		masterNode := shards[i].Nodes[0]
 		shards[i].Nodes = append(shards[i].Nodes, slaveNodes[masterNode.ID()]...)
 	}
-	return &Cluster{
-		Version: *atomic.NewInt64(clusterVer),
-		Shards:  shards,
-	}, nil
+
+	clusterInfo := &Cluster{
+		Shards: shards,
+	}
+	clusterInfo.Version.Store(clusterVer)
+
+	return clusterInfo, nil
+}
+
+// MarshalJSON is a custom function since the atomic.Int64 type does not directly implement JSON marshaling.
+func (cluster *Cluster) MarshalJSON() ([]byte, error) {
+	type Alias Cluster // to avoid recursion
+
+	return json.Marshal(&struct {
+		Version int64 `json:"version"`
+		*Alias
+	}{
+		Version: cluster.Version.Load(),
+		Alias:   (*Alias)(cluster),
+	})
+}
+
+// UnmarshalJSON is a custom function since the atomic.Int64 type does not directly implement JSON unmarshaling.
+func (cluster *Cluster) UnmarshalJSON(data []byte) error {
+	type Alias Cluster
+
+	aux := &struct {
+		Version int64 `json:"version"`
+		*Alias
+	}{
+		Alias: (*Alias)(cluster),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	cluster.Version.Store(aux.Version)
+	return nil
 }

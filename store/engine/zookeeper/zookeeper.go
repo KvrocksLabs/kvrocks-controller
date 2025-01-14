@@ -17,6 +17,7 @@
  * under the License.
  *
  */
+
 package zookeeper
 
 import (
@@ -24,19 +25,18 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/kvrocks-controller/logger"
 	"github.com/apache/kvrocks-controller/store/engine"
 	"github.com/go-zookeeper/zk"
-	"go.uber.org/atomic"
 )
 
 const (
-	sessionTTL = 6 * time.Second
+	sessionTTL       = 6 * time.Second
+	defaultElectPath = "/kvrocks/controller/leader"
 )
-
-const defaultElectPath = "/kvrocks/controller/leader"
 
 type Config struct {
 	Addrs     []string `yaml:"addrs"`
@@ -143,7 +143,7 @@ func (e *Zookeeper) Exists(ctx context.Context, key string) (bool, error) {
 	return exists, nil
 }
 
-// If the key exists, it will be set; if not, it will be created.
+// Set sets the value for the key. If the key exists, it will be set; if not, it will be created.
 func (e *Zookeeper) Set(ctx context.Context, key string, value []byte) error {
 	exist, _ := e.Exists(ctx, key)
 	if exist {

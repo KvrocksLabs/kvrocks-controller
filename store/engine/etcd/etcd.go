@@ -17,6 +17,7 @@
  * under the License.
  *
  */
+
 package etcd
 
 import (
@@ -24,6 +25,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/kvrocks-controller/consts"
@@ -31,7 +33,6 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/concurrency"
 	"go.etcd.io/etcd/pkg/transport"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
 	"github.com/apache/kvrocks-controller/logger"

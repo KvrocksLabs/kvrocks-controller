@@ -75,7 +75,7 @@ func TestClusterStore(t *testing.T) {
 		gotCluster, err := store.GetCluster(ctx, ns, "cluster0")
 		require.NoError(t, err)
 		require.Equal(t, cluster0.Name, gotCluster.Name)
-		require.Equal(t, cluster0.Version, gotCluster.Version)
+		require.Equal(t, cluster0.Version.Load(), gotCluster.Version.Load())
 
 		gotClusters, err := store.ListCluster(ctx, ns)
 		require.NoError(t, err)

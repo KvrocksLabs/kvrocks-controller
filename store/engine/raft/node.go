@@ -29,6 +29,7 @@ import (
 	"net/url"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/apache/kvrocks-controller/logger"
@@ -39,8 +40,6 @@ import (
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"go.etcd.io/etcd/server/v3/etcdserver/api/rafthttp"
 	stats "go.etcd.io/etcd/server/v3/etcdserver/api/v2stats"
-
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -131,7 +130,7 @@ func (n *Node) SetSnapshotThreshold(threshold uint64) {
 
 func (n *Node) run() error {
 	// The node is already running
-	if !n.isRunning.CAS(false, true) {
+	if !n.isRunning.CompareAndSwap(false, true) {
 		return nil
 	}
 	n.shutdown = make(chan struct{})
@@ -526,7 +525,7 @@ func (n *Node) ReportSnapshot(id uint64, status raft.SnapshotStatus) {
 }
 
 func (n *Node) Close() error {
-	if !n.isRunning.CAS(true, false) {
+	if !n.isRunning.CompareAndSwap(true, false) {
 		return nil
 	}
 	close(n.shutdown)

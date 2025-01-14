@@ -23,9 +23,9 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
 	"github.com/apache/kvrocks-controller/config"
@@ -66,7 +66,7 @@ func New(s *store.ClusterStore, config *config.ControllerConfig) (*Controller, e
 }
 
 func (c *Controller) Start(ctx context.Context) error {
-	if !c.state.CAS(stateInit, stateRunning) {
+	if !c.state.CompareAndSwap(stateInit, stateRunning) {
 		return nil
 	}
 
@@ -234,7 +234,7 @@ func (c *Controller) updateCluster(namespace, clusterName string) {
 }
 
 func (c *Controller) Close() {
-	if !c.state.CAS(stateRunning, stateClosed) {
+	if !c.state.CompareAndSwap(stateRunning, stateClosed) {
 		return
 	}
 

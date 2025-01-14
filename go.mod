@@ -21,7 +21,6 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.17
 	go.etcd.io/etcd/raft/v3 v3.5.17
 	go.etcd.io/etcd/server/v3 v3.5.17
-	go.uber.org/atomic v1.11.0
 	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v1 v1.0.0-20140924161607-9f9df34309c0
 )

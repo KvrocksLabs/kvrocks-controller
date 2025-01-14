@@ -144,7 +144,7 @@ func TestClusterBasics(t *testing.T) {
 		after, err := handler.s.GetCluster(ctx, ns, "test-cluster")
 		require.NoError(t, err)
 
-		require.EqualValues(t, before.Version.Inc(), after.Version.Load())
+		require.EqualValues(t, before.Version.Add(1), after.Version.Load())
 		require.Len(t, after.Shards[0].SlotRanges, 2)
 		require.EqualValues(t, store.SlotRange{Start: 0, Stop: 2}, after.Shards[0].SlotRanges[0])
 		require.EqualValues(t, store.SlotRange{Start: 4, Stop: 8191}, after.Shards[0].SlotRanges[1])

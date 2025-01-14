@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/store"
@@ -66,7 +65,7 @@ func (s *MockClusterStore) GetCluster(ctx context.Context, ns, cluster string) (
 }
 
 func (s *MockClusterStore) UpdateCluster(ctx context.Context, ns string, cluster *store.Cluster) error {
-	cluster.Version.Inc()
+	cluster.Version.Add(1)
 	return s.SetCluster(ctx, ns, cluster)
 }
 
@@ -104,8 +103,7 @@ func TestCluster_FailureCount(t *testing.T) {
 	mockNode3.Sequence = 101
 
 	clusterInfo := &store.Cluster{
-		Name:    clusterName,
-		Version: *atomic.NewInt64(1),
+		Name: clusterName,
 		Shards: []*store.Shard{{
 			Nodes: []store.Node{
 				mockNode0, mockNode1, mockNode2, mockNode3,
@@ -115,7 +113,10 @@ func TestCluster_FailureCount(t *testing.T) {
 			TargetShardIndex: -1,
 		}},
 	}
+	clusterInfo.Version.Store(1)
+
 	require.NoError(t, s.CreateCluster(ctx, ns, clusterInfo))
+
 	cluster := &ClusterChecker{
 		clusterStore: s,
 		namespace:    ns,

@@ -184,7 +184,7 @@ func (s *ClusterStore) UpdateCluster(ctx context.Context, ns string, clusterInfo
 		return fmt.Errorf("the cluster has been updated by others")
 	}
 
-	clusterInfo.Version.Inc()
+	clusterInfo.Version.Add(1)
 	clusterBytes, err := json.Marshal(clusterInfo)
 	if err != nil {
 		return fmt.Errorf("cluster: %w", err)

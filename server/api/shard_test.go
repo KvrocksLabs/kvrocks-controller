@@ -31,7 +31,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 
 	"github.com/apache/kvrocks-controller/consts"
 	"github.com/apache/kvrocks-controller/server/middleware"
@@ -48,11 +47,14 @@ func TestShardBasics(t *testing.T) {
 	shard := store.NewShard()
 	shard.SlotRanges = []store.SlotRange{{Start: 0, Stop: 16383}}
 	shard.Nodes = []store.Node{store.NewClusterNode("127.0.0.1:1234", "")}
-	err := handler.s.CreateCluster(context.Background(), ns, &store.Cluster{
-		Name:    clusterName,
-		Version: *atomic.NewInt64(1),
-		Shards:  []*store.Shard{shard},
-	})
+
+	clusterInfo := &store.Cluster{
+		Name:   clusterName,
+		Shards: []*store.Shard{shard},
+	}
+	clusterInfo.Version.Store(1)
+
+	err := handler.s.CreateCluster(context.Background(), ns, clusterInfo)
 	require.NoError(t, err)
 
 	runCreate := func(t *testing.T, expectedStatusCode int) {
