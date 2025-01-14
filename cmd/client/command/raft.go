@@ -33,6 +33,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	raftCommandList   = "list"
+	raftCommandAdd    = "add"
+	raftCommandRemove = "remove"
+)
+
 var RaftCommand = &cobra.Command{
 	Use:   "raft",
 	Short: "Raft operations",
@@ -46,17 +52,17 @@ kvctl raft add peer <node_id> <node_address>
 # Remove a node from the cluster
 kvctl raft remove peer <node_id>
 `,
-	ValidArgs: []string{"list", "add", "remove"},
+	ValidArgs: []string{raftCommandList, raftCommandAdd, raftCommandRemove},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		host, _ := cmd.Flags().GetString("host")
 		client := newClient(host)
 		switch strings.ToLower(args[0]) {
-		case "list":
+		case raftCommandList:
 			if len(args) < 2 || args[1] != "peers" {
 				return fmt.Errorf("unsupported openeration: '%s' in raft command", args[1])
 			}
 			return listRaftPeers(client)
-		case "add", "remove":
+		case raftCommandAdd, raftCommandRemove:
 			if len(args) < 2 {
 				return errors.New("missing 'peer' in raft command")
 			}
@@ -70,7 +76,7 @@ kvctl raft remove peer <node_id>
 			if err != nil {
 				return fmt.Errorf("invalid node_id: %s", args[1])
 			}
-			if args[0] == "add" {
+			if args[0] == raftCommandAdd {
 				if len(args) < 4 {
 					return fmt.Errorf("missing node_address")
 				}
