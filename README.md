@@ -9,11 +9,7 @@ Apache Kvrocks Controller is a cluster management tool for [Apache Kvrocks](http
 * Manage many clusters in one controller cluster
 * Support multi metadata storages like etcd and so on
 
-## Build and Running
-
-### Requirements
-
-* Go >= 1.19
+## Building and Running
 
 ### Build binaries
 
@@ -22,16 +18,16 @@ $ git clone https://github.com/apache/kvrocks-controller
 $ cd kvrocks-controller
 $ make # You can find the binary file in the `_build` dir if all goes good
 ```
+
 ### Overview
 ![image](docs/images/overview.png)
 For the storage, the ETCD is used as the default storage now. Welcome to contribute other storages like MySQL, Redis, Consul and so on. And what you need to do is to implement the [Engine interface](https://github.com/apache/kvrocks-controller/blob/unstable/store/engine/engine.go).
 
 ### Supported Storage Engine
-
-- [x] ETCD
-- [x] Zookeeper
-- [x] Consul by HashiCorp
-- [x] Embedded Storage based on Raft (experimental)
+- ETCD
+- Zookeeper
+- Consul by HashiCorp
+- Embedded Raft storage (experimental)
 
 ### Run the controller server
 
@@ -40,6 +36,12 @@ For the storage, the ETCD is used as the default storage now. Welcome to contrib
 $ make setup
 # Run the controller server
 $ ./_build/kvctl-server -c config/config.yaml
+```
+
+### Run the controller server in Docker
+
+```shell
+$ docker run -it -p 9379:9379 apache/kvrocks-controller:latest
 ```
 
 ![image](docs/images/server.gif)
