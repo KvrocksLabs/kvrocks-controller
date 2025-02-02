@@ -37,6 +37,7 @@ import (
 )
 
 const (
+	// Need to modify the cron schedule timeout accordingly in init.sql before changing the lockTTL
 	lockTTL                      = 6 * time.Second
 	listenerMinReconnectInterval = 10 * time.Second
 	listenerMaxReconnectInterval = 1 * time.Minute
