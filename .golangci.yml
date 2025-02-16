@@ -454,7 +454,7 @@ linters-settings:
 
   unused:
     # Select the Go version to target. The default is '1.13'.
-    go: "1.23"
+    go: "1.24"
 
   whitespace:
     multi-if: false   # Enforces newlines (or comments) after every multi-line if statement
