@@ -258,6 +258,7 @@ func TestClusterMigrateData(t *testing.T) {
 		}})
 	require.NoError(t, err)
 	require.NoError(t, ctrl.Start(ctx))
+	ctrl.WaitForReady()
 	defer ctrl.Close()
 
 	// Migration will be failed due to the source node cannot connect to the target node,
