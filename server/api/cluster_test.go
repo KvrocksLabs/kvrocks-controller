@@ -27,11 +27,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/apache/kvrocks-controller/config"
 	"github.com/apache/kvrocks-controller/consts"
+	"github.com/apache/kvrocks-controller/controller"
 	"github.com/apache/kvrocks-controller/server/middleware"
 	"github.com/apache/kvrocks-controller/store"
 	"github.com/apache/kvrocks-controller/store/engine"
@@ -117,10 +120,12 @@ func TestClusterBasics(t *testing.T) {
 	})
 
 	t.Run("migrate slot only", func(t *testing.T) {
+		handler := &ClusterHandler{s: store.NewClusterStore(engine.NewMock())}
+		clusterName := "test-migrate-slot-only-cluster"
 		recorder := httptest.NewRecorder()
 		ctx := GetTestContext(recorder)
 		ctx.Set(consts.ContextKeyStore, handler.s)
-		ctx.Params = []gin.Param{{Key: "namespace", Value: ns}, {Key: "cluster", Value: "test-cluster"}}
+		ctx.Params = []gin.Param{{Key: "namespace", Value: ns}, {Key: "cluster", Value: clusterName}}
 		testMigrateReq := &MigrateSlotRequest{
 			Slot:     3,
 			SlotOnly: true,
@@ -130,18 +135,19 @@ func TestClusterBasics(t *testing.T) {
 		require.NoError(t, err)
 		ctx.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 
-		before, err := handler.s.GetCluster(ctx, ns, "test-cluster")
+		cluster, err := store.NewCluster(clusterName, []string{"127.0.0.1:1111", "127.0.0.1:2222"}, 1)
+		require.NoError(t, err)
+		require.NoError(t, handler.s.CreateCluster(ctx, ns, cluster))
+
+		before, err := handler.s.GetCluster(ctx, ns, clusterName)
 		require.NoError(t, err)
 		require.EqualValues(t, store.SlotRange{Start: 0, Stop: 8191}, before.Shards[0].SlotRanges[0])
 		require.EqualValues(t, store.SlotRange{Start: 8192, Stop: store.MaxSlotID}, before.Shards[1].SlotRanges[0])
 
 		middleware.RequiredCluster(ctx)
-		if recorder.Code != http.StatusOK {
-			return
-		}
 		handler.MigrateSlot(ctx)
 		require.Equal(t, http.StatusOK, recorder.Code)
-		after, err := handler.s.GetCluster(ctx, ns, "test-cluster")
+		after, err := handler.s.GetCluster(ctx, ns, clusterName)
 		require.NoError(t, err)
 
 		require.EqualValues(t, before.Version.Add(1), after.Version.Load())
@@ -221,11 +227,12 @@ func TestClusterMigrateData(t *testing.T) {
 			require.NoError(t, node.SyncClusterInfo(ctx, cluster))
 		}
 	}
+	handler.s.CreateCluster(ctx, ns, cluster)
 
 	recorder := httptest.NewRecorder()
 	reqCtx := GetTestContext(recorder)
 	reqCtx.Set(consts.ContextKeyStore, handler.s)
-	reqCtx.Params = []gin.Param{{Key: "namespace", Value: ns}, {Key: "cluster", Value: "test-cluster"}}
+	reqCtx.Params = []gin.Param{{Key: "namespace", Value: ns}, {Key: "cluster", Value: clusterName}}
 	testMigrateReq := &MigrateSlotRequest{
 		Slot:   0,
 		Target: 1,
@@ -234,16 +241,33 @@ func TestClusterMigrateData(t *testing.T) {
 	require.NoError(t, err)
 	reqCtx.Request.Body = io.NopCloser(bytes.NewBuffer(body))
 	middleware.RequiredCluster(reqCtx)
-	if recorder.Code != http.StatusOK {
-		return
-	}
 	handler.MigrateSlot(reqCtx)
 	require.Equal(t, http.StatusOK, recorder.Code)
 
-	gotCluster, err := handler.s.GetCluster(ctx, ns, "test-cluster")
+	gotCluster, err := handler.s.GetCluster(ctx, ns, clusterName)
 	require.NoError(t, err)
 	require.EqualValues(t, 1, gotCluster.Version.Load())
 	require.Len(t, gotCluster.Shards[0].SlotRanges, 1)
 	require.EqualValues(t, 0, gotCluster.Shards[0].MigratingSlot)
 	require.EqualValues(t, 1, gotCluster.Shards[0].TargetShardIndex)
+
+	ctrl, err := controller.New(handler.s.(*store.ClusterStore), &config.ControllerConfig{
+		FailOver: &config.FailOverConfig{
+			PingIntervalSeconds: 1,
+			MaxPingCount:        3,
+		}})
+	require.NoError(t, err)
+	require.NoError(t, ctrl.Start(ctx))
+	ctrl.WaitForReady()
+	defer ctrl.Close()
+
+	// Migration will be failed due to the source node cannot connect to the target node,
+	// we just use it to confirm if the migration loop took effected.
+	require.Eventually(t, func() bool {
+		gotCluster, err := handler.s.GetCluster(ctx, ns, "test-cluster")
+		if err != nil {
+			return false
+		}
+		return gotCluster.Shards[0].MigratingSlot == -1
+	}, 10*time.Second, 100*time.Millisecond)
 }
