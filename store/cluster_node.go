@@ -191,7 +191,8 @@ func (n *ClusterNode) GetClusterInfo(ctx context.Context) (*ClusterInfo, error) 
 			if err != nil {
 				return nil, err
 			}
-		case "migrating_slot":
+		case "migrating_slot", "migrating_slot(s)":
+			// TODO(@git-hulk): handle multiple migrating slots
 			clusterInfo.MigratingSlot, err = strconv.Atoi(fields[1])
 			if err != nil {
 				return nil, err

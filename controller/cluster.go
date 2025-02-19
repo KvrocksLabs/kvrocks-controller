@@ -288,7 +288,10 @@ func (c *ClusterChecker) tryUpdateMigrationStatus(ctx context.Context, clonedClu
 			return
 		}
 		if sourceNodeClusterInfo.MigratingSlot != shard.MigratingSlot {
-			log.Error("Mismatch migrate slot", zap.Int("slot", shard.MigratingSlot))
+			log.Error("Mismatch migrating slot",
+				zap.Int("source_migrating_slot", sourceNodeClusterInfo.MigratingSlot),
+				zap.Int("migrating_slot", shard.MigratingSlot),
+			)
 			return
 		}
 		if shard.TargetShardIndex < 0 || shard.TargetShardIndex >= len(clonedCluster.Shards) {
@@ -301,13 +304,14 @@ func (c *ClusterChecker) tryUpdateMigrationStatus(ctx context.Context, clonedClu
 		case "none", "start":
 			continue
 		case "fail":
+			migratingSlot := shard.MigratingSlot
 			clonedCluster.Shards[i].ClearMigrateState()
 			if err := c.clusterStore.UpdateCluster(ctx, c.namespace, clonedCluster); err != nil {
 				log.Error("Failed to update the cluster", zap.Error(err))
 				return
 			}
 			c.updateCluster(clonedCluster)
-			log.Warn("Failed to migrate the slot", zap.Int("slot", shard.MigratingSlot))
+			log.Warn("Failed to migrate the slot", zap.Int("slot", migratingSlot))
 		case "success":
 			err := clonedCluster.SetSlot(ctx, shard.MigratingSlot, targetMasterNode.ID())
 			if err != nil {
